@@ -1,0 +1,43 @@
+#sd-partner-app .sd-sm-demo{margin:18px 0;padding:0;overflow:hidden;border:1px solid #dfe5df;border-radius:20px;background:#fff;box-shadow:0 12px 36px rgba(4,40,33,.06)}
+#sd-partner-app .sd-sm-hero{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(300px,.65fr);gap:32px;padding:30px;background:linear-gradient(135deg,#f4faf7 0%,#fff 58%,#fff5ed 100%)}
+#sd-partner-app .sd-sm-kicker{display:flex;align-items:center;gap:9px;color:#042821;font-size:12px;font-weight:800}
+#sd-partner-app .sd-sm-logo{display:grid;width:30px;height:30px;place-items:center;border-radius:9px;background:#e84728;color:#fff;font-size:16px}
+#sd-partner-app .sd-sm-demo-label{padding:5px 8px;border-radius:99px;background:#fff0e8;color:#d34b13;font-size:9px;letter-spacing:.06em;text-transform:uppercase}
+#sd-partner-app .sd-sm-hero h2{max-width:650px;margin:15px 0 8px;color:#042821;font:700 34px/1.05 'Cormorant Garamond',serif}
+#sd-partner-app .sd-sm-hero p{max-width:720px;margin:0;color:#60716d;font-size:12px;line-height:1.7}
+#sd-partner-app .sd-sm-actions{display:flex;align-items:center;gap:15px;margin-top:20px}
+#sd-partner-app .sd-sm-adapter-state{display:inline-flex;align-items:center;gap:7px;color:#42645b;font-size:10px;font-weight:700}
+#sd-partner-app .sd-sm-adapter-state i,#sd-partner-app .sd-sm-connected i,#sd-partner-app .sd-sm-sync-list i{width:7px;height:7px;border-radius:50%;background:#22a06b;box-shadow:0 0 0 4px rgba(34,160,107,.11)}
+#sd-partner-app .sd-sm-connection{display:grid;align-content:center;gap:15px;padding:21px;border:1px solid rgba(4,40,33,.09);border-radius:16px;background:rgba(255,255,255,.82)}
+#sd-partner-app .sd-sm-connection>div:not(.sd-sm-link){display:grid;gap:3px;padding:12px 14px;border-radius:11px;background:#f7f8f5}
+#sd-partner-app .sd-sm-connection span{color:#76837f;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.07em}
+#sd-partner-app .sd-sm-connection strong{color:#042821;font-size:12px}
+#sd-partner-app .sd-sm-link{display:flex;align-items:center;justify-content:center;gap:6px}
+#sd-partner-app .sd-sm-link i{width:6px;height:6px;border-radius:50%;background:#f8660b;animation:sd-sm-pulse 1.5s infinite}
+#sd-partner-app .sd-sm-link i:nth-child(2){animation-delay:.2s}#sd-partner-app .sd-sm-link i:nth-child(3){animation-delay:.4s}
+@keyframes sd-sm-pulse{0%,100%{opacity:.28;transform:scale(.75)}50%{opacity:1;transform:scale(1)}}
+#sd-partner-app .sd-sm-progress{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid #e8ece8;border-bottom:1px solid #e8ece8;background:#fbfcfa}
+#sd-partner-app .sd-sm-progress>div{display:flex;align-items:center;gap:10px;padding:16px 18px;border-right:1px solid #e8ece8}
+#sd-partner-app .sd-sm-progress>div:last-child{border-right:0}
+#sd-partner-app .sd-sm-progress>div>span{display:grid;width:26px;height:26px;flex:0 0 auto;place-items:center;border-radius:50%;background:#e8ece8;color:#7c8884;font-size:10px;font-weight:800;transition:.2s}
+#sd-partner-app .sd-sm-progress div div{display:grid;gap:2px}
+#sd-partner-app .sd-sm-progress strong{color:#29483f;font-size:10px}#sd-partner-app .sd-sm-progress small{color:#82908c;font-size:9px}
+#sd-partner-app .sd-sm-progress .is-active>span{background:#fff0e8;color:#f8660b;box-shadow:0 0 0 5px rgba(248,102,11,.08)}
+#sd-partner-app .sd-sm-progress .is-ready>span{background:#08735c;color:#fff}#sd-partner-app .sd-sm-progress .is-ready small{color:#08735c}
+#sd-partner-app .sd-sm-results{padding:24px;background:#fcfcfa}#sd-partner-app .sd-sm-results[hidden]{display:none}
+#sd-partner-app .sd-sm-summary,#sd-partner-app .sd-sm-room-panel,#sd-partner-app .sd-sm-sync-panel,#sd-partner-app .sd-sm-candidate{padding:20px;border:1px solid #e7e8e3;border-radius:15px;background:#fff}
+#sd-partner-app .sd-sm-section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:15px}
+#sd-partner-app .sd-sm-section-head h3{margin:4px 0 0;color:#042821;font:700 23px 'Cormorant Garamond',serif}
+#sd-partner-app .sd-sm-connected,#sd-partner-app .sd-sm-ready,#sd-partner-app .sd-sm-count{display:inline-flex;align-items:center;gap:8px;padding:7px 9px;border-radius:99px;background:#e9f7f1;color:#08735c;font-size:9px;font-weight:800;white-space:nowrap}
+#sd-partner-app .sd-sm-ready{background:#fff0e8;color:#d34b13}#sd-partner-app .sd-sm-count{background:#f0f2ef;color:#52635e}
+#sd-partner-app .sd-sm-summary dl{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:16px 0 0}
+#sd-partner-app .sd-sm-summary dl div{padding:12px;border-radius:10px;background:#f7f8f5}#sd-partner-app .sd-sm-summary dt{margin-bottom:5px;color:#7c8985;font-size:8px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}#sd-partner-app .sd-sm-summary dd{margin:0;color:#173f35;font-size:11px;font-weight:700}
+#sd-partner-app .sd-sm-room-panel{margin-top:12px}#sd-partner-app .sd-sm-table-wrap{margin-top:14px;overflow:auto}#sd-partner-app .sd-sm-table-wrap table{width:100%;border-collapse:collapse}#sd-partner-app .sd-sm-table-wrap th{text-align:left;padding:9px 10px;border-bottom:1px solid #e7e8e3;color:#7b8985;font-size:8px;text-transform:uppercase;letter-spacing:.06em}#sd-partner-app .sd-sm-table-wrap td{padding:12px 10px;border-bottom:1px solid #f0f1ee;color:#38534c;font-size:10px}#sd-partner-app .sd-sm-table-wrap tr:last-child td{border-bottom:0}#sd-partner-app .sd-sm-table-wrap td strong{color:#042821;font-size:11px}#sd-partner-app .sd-sm-table-wrap code{padding:4px 6px;border-radius:5px;background:#f1f3f0;color:#41534e;font-size:9px}#sd-partner-app .sd-sm-stock{color:#08735c;font-weight:800}
+#sd-partner-app .sd-sm-bottom-grid{display:grid;grid-template-columns:.8fr 1.2fr;gap:12px;margin-top:12px}
+#sd-partner-app .sd-sm-sync-list{display:grid;gap:1px;margin-top:12px}#sd-partner-app .sd-sm-sync-list>div{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #f0f1ee;color:#62736e;font-size:10px}#sd-partner-app .sd-sm-sync-list>div:last-child{border-bottom:0}#sd-partner-app .sd-sm-sync-list strong{display:flex;align-items:center;gap:7px;color:#08735c;font-size:9px}#sd-partner-app .sd-sm-sync-list .is-neutral{color:#71807c}
+#sd-partner-app .sd-sm-candidate>p{margin:12px 0;color:#60716d;font-size:10px}#sd-partner-app .sd-sm-price{display:flex;align-items:flex-end;justify-content:space-between;gap:15px;margin:16px 0}#sd-partner-app .sd-sm-price span{display:flex;align-items:baseline;gap:9px;color:#77847f;font-size:10px}#sd-partner-app .sd-sm-price strong{color:#f8660b;font:700 28px 'Cormorant Garamond',serif}#sd-partner-app .sd-sm-price small{color:#60716d;font-size:9px}
+#sd-partner-app .sd-sm-disclaimer{margin:0;padding:14px 24px;border-top:1px solid #f0dfd6;background:#fff8f3;color:#7d675b;font-size:9px;line-height:1.6}
+.sd-sm-dialog>p{color:#71807c;font-size:11px;line-height:1.6}.sd-sm-dialog-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:18px 0}.sd-sm-dialog-grid>div{display:grid;gap:4px;padding:11px;border-radius:9px;background:#f7f8f5}.sd-sm-dialog-grid span{color:#7b8884;font-size:8px;text-transform:uppercase;letter-spacing:.06em}.sd-sm-dialog-grid strong{color:#042821;font-size:11px}.sd-sm-dialog>.sd-primary-button{width:100%;margin-top:6px}
+@media(max-width:900px){#sd-partner-app .sd-sm-hero{grid-template-columns:1fr}#sd-partner-app .sd-sm-progress{grid-template-columns:1fr 1fr}#sd-partner-app .sd-sm-progress>div:nth-child(2){border-right:0}#sd-partner-app .sd-sm-summary dl{grid-template-columns:1fr 1fr}}
+@media(max-width:620px){#sd-partner-app .sd-sm-hero{padding:22px}#sd-partner-app .sd-sm-hero h2{font-size:29px}#sd-partner-app .sd-sm-actions,#sd-partner-app .sd-sm-section-head,#sd-partner-app .sd-sm-price{align-items:stretch;flex-direction:column}#sd-partner-app .sd-sm-actions .sd-primary-button{width:100%}#sd-partner-app .sd-sm-progress{grid-template-columns:1fr}#sd-partner-app .sd-sm-progress>div{border-right:0;border-bottom:1px solid #e8ece8}#sd-partner-app .sd-sm-progress>div:last-child{border-bottom:0}#sd-partner-app .sd-sm-results{padding:14px}#sd-partner-app .sd-sm-summary dl,#sd-partner-app .sd-sm-bottom-grid{grid-template-columns:1fr}.sd-sm-dialog-grid{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){#sd-partner-app .sd-sm-link i{animation:none}}

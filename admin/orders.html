@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Omzet & orders · SeasonDeals Admin</title>
+  <link rel="stylesheet" href="css/admin.css?v=20260721-1">
+</head>
+<body>
+  <main id="admin-page">
+    <section class="panel"><p><strong>Let op:</strong> dit administratieve overzicht bevat momenteel ook sandbox- en testorders. Gebruik de leverancierspagina voor de gescheiden Nuitée-omgeving en margecontrole.</p></section>
+    <section id="orders-totals" class="kpi-grid"><div class="loading-state"><div class="spinner"></div>Omzet laden…</div></section>
+    <section class="panel">
+      <form id="orders-filters" class="toolbar">
+        <label class="search-field"><span>⌕</span><input id="orders-search" type="search" placeholder="Zoek order, klant, hotel of deal…"></label>
+        <select id="orders-status" aria-label="Betaalstatus"><option value="paid">Betaald</option><option value="pending">In afwachting</option><option value="refunded">Terugbetaald</option><option value="cancelled">Geannuleerd</option></select>
+        <input id="orders-from" type="date" aria-label="Vanaf datum">
+        <input id="orders-to" type="date" aria-label="Tot datum">
+        <button class="primary-button" type="submit">Filter toepassen</button>
+      </form>
+      <div id="orders-content" class="loading-state"><div class="spinner"></div>Orders ophalen…</div>
+      <div id="orders-pagination"></div>
+    </section>
+  </main>
+  <script src="js/config.js?v=20260721-1"></script>
+  <script src="js/core.js?v=20261008-3"></script>
+  <script src="js/orders.js?v=20261011-5"></script>
+</body>
+</html>

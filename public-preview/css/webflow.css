@@ -1,0 +1,29 @@
+/* Keep the GitHub frontend visually identical inside a Webflow Embed. */
+.w-embed {
+  font-size: 16px !important;
+  line-height: normal !important;
+}
+
+.w-embed .section {
+  border-radius: 0 !important;
+}
+
+.w-embed .deal-card {
+  display: block !important;
+  width: auto !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  gap: normal !important;
+  flex-flow: row !important;
+  align-items: normal !important;
+}
+
+.w-embed .button,
+.w-embed .button-primary,
+.w-embed .button-dark,
+.w-embed .search-button,
+.w-embed .booking-submit {
+  flex-direction: row !important;
+  line-height: normal !important;
+}

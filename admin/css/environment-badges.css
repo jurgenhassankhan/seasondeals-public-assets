@@ -1,0 +1,7 @@
+.deal-status-stack{display:grid;justify-items:start;gap:6px}
+.environment-badge{width:max-content;padding:5px 8px;border-radius:999px;font-size:8px;font-weight:900;letter-spacing:.07em}
+.environment-test{background:#fff0e7;color:#c95309;border:1px solid #ffd5bd}
+.environment-production{background:#e8f7f0;color:#087052;border:1px solid #bde8d7}
+.environment-manual{background:#f0f2f1;color:#667570;border:1px solid #dfe4e2}
+.environment-warning{margin-bottom:14px!important}
+.deal-title-row>.environment-badge{margin-left:auto}

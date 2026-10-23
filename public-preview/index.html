@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="description" content="Ontdek exclusieve deals voor hotels, wellness, massages, evenementen en attracties. Boek veilig online en ontvang direct je SeasonDeals-voucher.">
+  <meta name="theme-color" content="#042821">
+  <title>SeasonDeals · Hot offers, cool prices</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://images.unsplash.com">
+  <link rel="stylesheet" href="css/site.css?v=20261023-launch-1">
+  <link rel="stylesheet" href="css/cookie-consent.css?v=20260803-2">
+</head>
+<body>
+  <div class="announcement">
+    <span>Nieuw seizoen, nieuwe belevenissen</span>
+    <strong>Hot offers, cool prices</strong>
+    <a href="#deals">Bekijk de populairste deals →</a>
+  </div>
+
+  <header class="site-header">
+    <a class="brand" href="#top" aria-label="SeasonDeals homepage">
+      <span class="brand-name">SeasonDeals</span>
+      <span class="brand-slogan">Hot offers, cool prices</span>
+    </a>
+    <button id="menu-toggle" class="menu-toggle" type="button" aria-label="Menu openen" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+    <nav id="main-nav" class="main-nav" aria-label="Hoofdnavigatie">
+      <a href="#deals">Deals</a>
+      <a href="#categories">Categorieën</a>
+      <a href="#inspiration">Inspiratie</a>
+      <a href="#how-it-works">Hoe het werkt</a>
+    </nav>
+    <div class="header-actions">
+      <button class="round-action" type="button" aria-label="Favorieten">♡</button>
+      <button class="account-action" type="button"><span class="account-icon">○</span>Mijn account</button>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="hero-shade"></div>
+      <div class="hero-content">
+        <span class="kicker">Meer beleven voor een verrassend lage prijs</span>
+        <h1>Van hotelnacht tot wellnessdag. <em>Altijd een bijzondere deal.</em></h1>
+        <p>Ontdek zorgvuldig geselecteerde hotels, massages, wellness, tickets en attracties — allemaal met een prijs waar je blij van wordt.</p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="#deals">Ontdek alle deals <span>→</span></a>
+          <a class="text-action" href="#categories"><span class="play">▶</span> Bekijk wat er te beleven is</a>
+        </div>
+      </div>
+      <div class="hero-proof">
+        <div class="proof-avatars"><span>H</span><span>W</span><span>T</span></div>
+        <div><strong>Elke week nieuwe deals</strong><small>Voor elk moment en ieder seizoen</small></div>
+      </div>
+    </section>
+
+    <section class="search-wrap" aria-label="Deals zoeken">
+      <form id="deal-search" class="search-panel">
+        <label class="search-control">
+          <span class="control-icon">◇</span>
+          <span class="control-copy"><small>Waar heb je zin in?</small><select id="search-category"><option value="all">Alle belevenissen</option><option value="hotel">Hotels & overnachtingen</option><option value="wellness">Wellness & spa</option><option value="massage">Massages</option><option value="tickets">Tickets & events</option><option value="attraction">Attracties & uitjes</option></select></span>
+        </label>
+        <label class="search-control">
+          <span class="control-icon">⌖</span>
+          <span class="control-copy"><small>Waar?</small><input id="search-location" type="search" placeholder="Plaats of regio"></span>
+        </label>
+        <label class="search-control">
+          <span class="control-icon">□</span>
+          <span class="control-copy"><small>Wanneer?</small><input type="text" placeholder="Kies een datum" readonly></span>
+        </label>
+        <button class="button button-primary search-button" type="submit">Vind mijn deal <span>⌕</span></button>
+      </form>
+    </section>
+
+    <section id="deals" class="section deals-section">
+      <div class="section-heading heading-row">
+        <div><span class="kicker orange">Speciaal voor jou geselecteerd</span><h2>Hot offers van dit moment</h2></div>
+        <a class="arrow-link" href="#deals">Bekijk alle deals →</a>
+      </div>
+      <div class="filter-row" role="group" aria-label="Dealfilters">
+        <button class="filter-chip is-active" type="button" data-filter="all">Alles</button>
+        <button class="filter-chip" type="button" data-filter="hotel">Hotels</button>
+        <button class="filter-chip" type="button" data-filter="wellness">Wellness</button>
+        <button class="filter-chip" type="button" data-filter="massage">Massage</button>
+        <button class="filter-chip" type="button" data-filter="tickets">Tickets</button>
+        <button class="filter-chip" type="button" data-filter="attraction">Attracties</button>
+      </div>
+      <div id="deal-grid" class="deal-grid" aria-live="polite"><div class="deals-loading"><span></span><strong>De nieuwste deals worden geladen…</strong></div></div>
+      <div id="deals-message" class="deals-message" role="status"></div>
+    </section>
+
+    <section id="categories" class="section categories-section">
+      <div class="section-heading centered-heading">
+        <span class="kicker orange">Voor ieder moment</span>
+        <h2>Waar heb jij vandaag zin in?</h2>
+        <p>Een nachtje weg, tijd voor jezelf of een dag vol belevenissen. SeasonDeals brengt het allemaal samen.</p>
+      </div>
+      <div class="category-grid">
+        <a class="category-card category-large" href="#deals" data-filter-link="hotel"><img src="https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1100&q=82" alt="Sfeervol hotel"><span class="image-overlay"></span><span class="category-content"><small>Er even helemaal uit</small><strong>Hotels</strong><em>Bekijk deals →</em></span></a>
+        <a class="category-card" href="#deals" data-filter-link="wellness"><img src="https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=800&q=82" alt="Wellness en spa"><span class="image-overlay"></span><span class="category-content"><small>Rust voor lichaam en hoofd</small><strong>Wellness</strong><em>Bekijk deals →</em></span></a>
+        <a class="category-card" href="#deals" data-filter-link="massage"><img src="https://images.unsplash.com/photo-1600334089648-b0d9d3028eb2?auto=format&fit=crop&w=800&q=82" alt="Ontspannende massage"><span class="image-overlay"></span><span class="category-content"><small>Een moment voor jezelf</small><strong>Massage</strong><em>Bekijk deals →</em></span></a>
+        <a class="category-card" href="#deals" data-filter-link="tickets"><img src="https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=800&q=82" alt="Concert en evenement"><span class="image-overlay"></span><span class="category-content"><small>Mis geen bijzonder moment</small><strong>Tickets</strong><em>Bekijk deals →</em></span></a>
+        <a class="category-card" href="#deals" data-filter-link="attraction"><img src="https://images.unsplash.com/photo-1513889961551-628c1e5e2ee9?auto=format&fit=crop&w=800&q=82" alt="Attractiepark"><span class="image-overlay"></span><span class="category-content"><small>Samen iets nieuws beleven</small><strong>Attracties</strong><em>Bekijk deals →</em></span></a>
+      </div>
+    </section>
+
+    <section class="trust-strip" aria-label="Voordelen van SeasonDeals">
+      <div><span class="trust-icon">◇</span><p><strong>Exclusieve prijzen</strong><small>Rechtstreeks met onze partners afgesproken</small></p></div>
+      <div><span class="trust-icon">♢</span><p><strong>Veilig betalen</strong><small>Betrouwbaar, snel en transparant</small></p></div>
+      <div><span class="trust-icon">▱</span><p><strong>Direct je voucher</strong><small>Meteen na je boeking in je inbox</small></p></div>
+      <div><span class="trust-icon">♡</span><p><strong>Met zorg geselecteerd</strong><small>Alleen deals waar wij achter staan</small></p></div>
+    </section>
+
+    <section id="inspiration" class="section inspiration-section">
+      <div class="inspiration-media"><img src="https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=1200&q=84" alt="Bijzonder weekend samen"><span class="floating-card"><strong>4,8/5</strong><small>Gemiddelde waardering</small></span></div>
+      <div class="inspiration-copy"><span class="kicker orange">Meer dan korting</span><h2>Maak ruimte voor iets bijzonders.</h2><p>Een spontane overnachting, een middag helemaal offline of eindelijk dat ene uitje samen. Met SeasonDeals wordt meer beleven ineens verrassend bereikbaar.</p><blockquote>“Niet zomaar een aanbieding, maar een reden om iets moois te plannen.”</blockquote><a class="button button-dark" href="#deals">Laat je inspireren →</a></div>
+    </section>
+
+    <section id="how-it-works" class="section how-section">
+      <div class="section-heading centered-heading"><span class="kicker orange">Simpel geregeld</span><h2>Zo werkt SeasonDeals</h2></div>
+      <div class="steps"><article><span>01</span><h3>Kies jouw moment</h3><p>Ontdek hotels, wellness, massages, tickets en attracties.</p></article><article><span>02</span><h3>Boek veilig online</h3><p>Bekijk helder wat inbegrepen is en betaal veilig via Stripe.</p></article><article><span>03</span><h3>Ontvang je voucher</h3><p>Je unieke voucher staat direct na betaling in je inbox.</p></article><article><span>04</span><h3>Geniet ervan</h3><p>Laat je voucher zien bij de partner en maak er iets moois van.</p></article></div>
+    </section>
+
+    <section class="membership-section">
+      <div><span class="kicker light">SeasonDeals Club</span><h2>Hot offers.<br>Als eerste in je inbox.</h2></div>
+      <div class="membership-benefits"><span>✓ Als eerste toegang tot nieuwe deals</span><span>✓ Exclusieve ledenaanbiedingen</span><span>✓ Inspiratie voor ieder seizoen</span></div>
+      <form id="newsletter"><label><span class="sr-only">E-mailadres</span><input type="email" placeholder="Jouw e-mailadres" required><button type="submit">Aanmelden</button></label><small>Gratis aanmelden. Uitschrijven kan altijd.</small></form>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-top"><div class="footer-brand"><a class="brand" href="#top"><span class="brand-name">SeasonDeals</span><span class="brand-slogan">Hot offers, cool prices</span></a><p>Bijzondere momenten voor een prijs die net zo goed voelt.</p></div><div><strong>Ontdek</strong><a href="#deals">Alle deals</a><a href="#categories">Hotels</a><a href="#categories">Wellness</a><a href="#categories">Tickets &amp; attracties</a></div><div><strong>Service</strong><a href="faq.html">Veelgestelde vragen</a><a href="faq.html#voucher">Voucher gebruiken</a><a href="faq.html#annuleren">Annuleren</a><a href="faq.html#contact">Contact</a></div><div><strong>SeasonDeals</strong><a href="over-ons.html">Over ons</a><a href="partner-worden.html">Partner worden</a><a href="inspiratie.html">Inspiratie</a></div><div><strong>Contact</strong><a href="mailto:info@seasondeals.nl">info@seasondeals.nl</a><a href="mailto:sales@seasondeals.nl">sales@seasondeals.nl</a><span>Ma–vr · 09:00–17:30</span></div></div>
+    <div class="footer-bottom"><span>© 2026 SeasonDeals.nl</span><div><a href="privacy.html">Privacy</a><a href="algemene-voorwaarden.html">Voorwaarden</a><a href="cookies.html">Cookies</a><a href="#" data-cookie-settings>Cookievoorkeuren</a></div></div>
+  </footer>
+  <div id="preview-toast" class="preview-toast" role="status"></div>
+  <script src="js/site.js?v=20261023-price-order-1"></script>
+  <script src="js/cookie-consent.js?v=20260803-1"></script>
+</body>
+</html>

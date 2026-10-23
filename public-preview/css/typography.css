@@ -1,0 +1,15 @@
+/* SeasonDeals readability layer. */
+.announcement{font-size:12px}.announcement strong{font-size:11px}.brand-slogan{font-size:10px}.main-nav a,.account-action{font-size:13px}.kicker{font-size:11px}.button,.text-action{font-size:13px}.hero-proof strong{font-size:12px}.hero-proof small{font-size:11px}.control-copy small{font-size:12px}.control-copy input,.control-copy select{font-size:13px}.section-heading p,.inspiration-copy>p{color:#53645f;font-size:14px}.category-content small{font-size:11px}.category-content em{font-size:12px}.arrow-link{font-size:12px}.filter-chip{font-size:11px}.deal-type{font-size:11px}.deal-partner,.rating{color:#53645f;font-size:12px}.deal-card ul{font-size:11px}.price-row small{font-size:11px}.price-row a{font-size:12px}.trust-strip small{font-size:11px}.floating-card small{font-size:11px}.steps p{color:#53645f;font-size:13px}.membership-benefits{font-size:12px}.membership-section input,.membership-section button{font-size:12px}.membership-section form small{font-size:10px}.footer-brand p{color:#53645f;font-size:12px}.footer-top a,.footer-top>div>span{color:#53645f;font-size:11px}.footer-bottom{color:#53645f;font-size:10px}.stock-badge{font-size:11px}.faq-search input{font-size:13px}.faq-intro p,.faq-contact p{color:#53645f;font-size:13px}.faq-group-title{font-size:11px}.faq-answer{color:#53645f;font-size:14px}.deals-loading,.deals-message{font-size:13px}
+.detail-loading small{font-size:12px}.detail-error p{color:#53645f;font-size:14px}.detail-breadcrumbs{color:#53645f;font-size:12px}.gallery-count{font-size:11px}.detail-placeholder small{font-size:10px}.detail-kicker,.detail-section-label{font-size:11px}.detail-subline{color:#53645f;font-size:13px}.detail-content p{color:#53645f;font-size:14px}.amenity strong{font-size:13px}.amenity small{color:#53645f;font-size:12px}.period-card span{color:#53645f;font-size:12px}.policy-card{color:#53645f;font-size:13px}.booking-price small{color:#53645f;font-size:11px}.booking-save{font-size:11px}.booking-form label{font-size:12px}.booking-form input,.booking-form select{font-size:13px}.booking-submit{font-size:13px}.booking-message{font-size:12px}.booking-assurances div{color:#53645f;font-size:11px}.availability{font-size:12px}.availability span{font-size:11px}.lightbox-counter{font-size:12px}
+
+
+/* Content-page readability. */
+.content-hero p{font-size:15px}
+.content-intro p,.content-section p,.content-section li{color:#53645f;font-size:14px}
+.content-tile span{font-size:11px}.content-tile p{font-size:13px}
+.legal-meta span{font-size:11px}.legal-note{font-size:13px}
+.legal-table th,.legal-table td{font-size:12px}
+.legal-identity span{font-size:11px}.legal-identity strong{font-size:13px}
+.sd-cookie-banner p{font-size:13px}.sd-cookie-actions button{font-size:12px}
+.sd-cookie-dialog>p{font-size:13px}.sd-cookie-option strong{font-size:13px}.sd-cookie-option span{font-size:12px}
+.sd-cookie-dialog-actions button{font-size:12px}

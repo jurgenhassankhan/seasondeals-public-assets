@@ -1,0 +1,32 @@
+/* Scope compact controls to the supplier card, retaining the existing admin theme. */
+.supplier-price-card h3{margin-bottom:16px}
+.price-base{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid var(--line);margin-bottom:16px;font-size:12px}
+.price-base strong{font-size:17px;color:var(--green);white-space:nowrap}
+#supplier-pricing{display:block}
+#supplier-pricing label,#supplier-pricing legend{display:block;margin:0 0 7px;font-size:11px;font-weight:600;color:var(--green)}
+#supplier-pricing input,#supplier-pricing select{box-sizing:border-box;width:100%;height:42px;min-height:42px;padding:10px 12px;border:1px solid #dce4df;border-radius:9px;background:#fff;color:var(--green);font-size:14px;line-height:20px}
+#supplier-pricing select{margin-bottom:14px}
+#supplier-pricing input{padding-right:30px}
+#supplier-pricing input:focus,#supplier-pricing select:focus{outline:2px solid #f8660b55;outline-offset:1px;border-color:var(--orange)}
+#supplier-pricing input:disabled,#supplier-pricing select:disabled{background:#f7f8f6;color:#65746d}
+#supplier-pricing .price-field{margin-bottom:12px;min-width:0}
+.price-input-wrap{position:relative}
+.price-input-wrap>span{position:absolute;right:12px;top:12px;font-size:12px;color:var(--muted);pointer-events:none}
+#supplier-pricing input::-webkit-inner-spin-button{appearance:none}
+.price-help{font-size:11px!important;line-height:1.55!important;color:var(--muted);margin:7px 0 13px}
+.price-result{padding:17px;border:1px solid #dce8df;border-radius:12px;background:#f0f6f2;margin:16px 0}
+.price-result>span{display:block;font-size:11px;color:#546e60}
+.price-result>strong{display:block;margin:5px 0 12px;font:700 32px/1.1 'Cormorant Garamond',serif;color:var(--green)}
+.price-result>div{display:flex;justify-content:space-between;gap:10px;border-top:1px solid #d8e5dc;padding-top:11px;font-size:11px}
+.price-result small{display:block;margin-top:9px;font-size:10px;line-height:1.5;color:#566b60}
+.price-settings{border-top:1px solid var(--line);padding:12px 0}
+.price-settings summary{cursor:pointer;font-size:12px;font-weight:600;color:var(--green)}
+.price-settings summary>span{display:block;margin:5px 0 0 15px;font-weight:400;color:#9b5c1d;font-size:10px}
+.price-settings[open] summary{margin-bottom:15px}
+.price-settings fieldset{padding:0;margin:0;border:0;min-width:0}
+.price-columns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#supplier-pricing .primary-button{width:100%;margin-top:12px;min-height:42px}
+#supplier-pricing .primary-button:disabled{opacity:.5;cursor:not-allowed}
+.supplier-price-card #supplier-content{border-top:1px solid var(--line);padding-top:20px;margin-top:22px}
+.supplier-price-card #supplier-content textarea{min-height:80px;height:auto}
+#supplier-pricing [hidden]{display:none!important}

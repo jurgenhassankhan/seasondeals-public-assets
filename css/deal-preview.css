@@ -1,0 +1,88 @@
+.shared-preview-page {
+  position: relative;
+}
+
+.shared-preview-bar {
+  position: relative;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 11px clamp(18px, 4vw, 68px);
+  color: #fff;
+  background: #052f27;
+  border-bottom: 3px solid #ff5a16;
+}
+
+.shared-preview-bar div {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.shared-preview-bar strong {
+  color: #fff;
+  font-size: .75rem;
+  letter-spacing: .12em;
+}
+
+.shared-preview-bar span {
+  color: rgba(255,255,255,.78);
+  font-size: .8rem;
+}
+
+.shared-preview-bar a {
+  color: #fff;
+  font-size: .82rem;
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.shared-preview-bar a:hover {
+  color: #ffb08d;
+}
+
+.shared-preview-page .booking-card {
+  border-top: 4px solid #ff5a16;
+}
+
+.shared-preview-page .booking-form::before {
+  display: block;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  color: #6c3a24;
+  background: #fff0e8;
+  border: 1px solid #ffd0ba;
+  border-radius: 10px;
+  content: "Testpreview: er wordt geen boeking of betaling aangemaakt.";
+  font-size: .76rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.shared-preview-page .booking-submit {
+  cursor: pointer;
+}
+
+.shared-preview-page .booking-submit.is-preview {
+  box-shadow: none;
+}
+
+@media (max-width: 760px) {
+  .shared-preview-bar,
+  .shared-preview-bar div {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .shared-preview-bar {
+    gap: 7px;
+  }
+
+  .shared-preview-bar div {
+    gap: 3px;
+  }
+
+}

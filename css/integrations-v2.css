@@ -1,0 +1,26 @@
+.sd-integration-actions{gap:10px}
+.sd-key-row code,.sd-secret-row code,.sd-api-guide code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
+.sd-api-guide{margin-top:18px;padding:24px;border:1px solid #e8e4dc;border-radius:18px;background:#fff;box-shadow:0 8px 30px rgba(4,40,33,.04)}
+.sd-api-guide-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}
+.sd-api-guide h2{margin:5px 0 0;color:#042821;font:700 28px 'Cormorant Garamond',serif}
+.sd-api-guide>p{max-width:820px;color:#60716d;font-size:12px;line-height:1.65}
+.sd-api-base{margin:18px 0;display:flex;align-items:center;gap:12px;padding:13px 15px;border-radius:12px;background:#042821;color:#fff}
+.sd-api-base span{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+.sd-api-base code{min-width:0;flex:1;overflow-wrap:anywhere;color:#fff;font-size:11px}
+.sd-api-base button{border:0;background:#f8660b;color:#fff;border-radius:8px;padding:8px 11px;font-size:10px;font-weight:800;cursor:pointer}
+.sd-api-endpoints{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sd-api-endpoints>div{display:grid;gap:4px;padding:13px 14px;border:1px solid #ebe7df;border-radius:11px}
+.sd-api-endpoints code{color:#042821;font-size:11px;font-weight:800}
+.sd-api-endpoints span{color:#71807c;font-size:10px}
+.sd-api-flow{margin-top:14px;padding:14px;border-radius:11px;background:#fff5ed;display:grid;gap:5px}
+.sd-api-flow strong{color:#f8660b;font-size:10px;text-transform:uppercase;letter-spacing:.06em}
+.sd-api-flow span{color:#042821;font-size:11px;font-weight:700}
+.sd-api-note{margin-bottom:0!important;font-size:10px!important}
+.sd-api-test-form{display:grid;gap:10px;margin-top:18px}
+.sd-api-test-form label{display:grid;gap:6px;color:#042821;font-size:11px;font-weight:800}
+.sd-api-test-form input{width:100%;box-sizing:border-box;padding:12px;border:1px solid #ded9cf;border-radius:9px;font:inherit}
+.sd-api-test-result{margin-top:12px}
+.sd-api-test-success,.sd-api-test-failure{display:grid;gap:4px;padding:12px;border-radius:10px;font-size:11px}
+.sd-api-test-success{background:#e9f7f1;color:#08624e}
+.sd-api-test-failure{background:#fff1f0;color:#a43c32}
+@media(max-width:620px){.sd-api-endpoints{grid-template-columns:1fr}.sd-api-guide-head,.sd-api-base{align-items:stretch;flex-direction:column}.sd-integration-actions{display:grid}.sd-integration-actions .sd-primary-button,.sd-integration-actions .sd-secondary-button{width:100%}}

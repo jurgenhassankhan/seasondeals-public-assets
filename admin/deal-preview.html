@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <title>Testpreview openen · SeasonDeals</title>
+</head>
+<body>
+  <p>De beveiligde testpreview wordt geopend…</p>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    params.set("portal", "admin");
+    window.location.replace("../deal-preview.html?" + params.toString());
+  </script>
+</body>
+</html>

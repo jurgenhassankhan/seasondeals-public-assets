@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>SeasonDeals Partner Portal</title>
+  <link rel="stylesheet" href="css/partner.css">
+</head>
+<body>
+<!-- SEASONDEALS PARTNER DASHBOARD -->
+<div id="sd-partner-app">
+  <div id="sd-mobile-overlay" class="sd-mobile-overlay"></div>
+
+  <aside id="sd-sidebar" class="sd-sidebar">
+    <div class="sd-sidebar-top">
+      <a href="index.html" class="sd-sidebar-logo" aria-label="SeasonDeals Partner Portal">
+        <img
+          src="https://cdn.prod.website-files.com/68cb0d808ea4f2467bb313af/6a48e006585299f4853fe7ea_Nieuw%20logo%20trans-p-500.png"
+          alt="SeasonDeals"
+        >
+      </a>
+
+      <button
+        id="sd-sidebar-close"
+        class="sd-sidebar-close"
+        type="button"
+        aria-label="Close navigation"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="m6 6 12 12M18 6 6 18"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+          />
+        </svg>
+      </button>
+    </div>
+
+    <div class="sd-hotel-card">
+      <div id="sd-hotel-avatar" class="sd-hotel-avatar">H</div>
+
+      <div class="sd-hotel-copy">
+        <strong id="sd-sidebar-hotel">Hotel partner</strong>
+        <span id="sd-sidebar-role">SeasonDeals Portal</span>
+      </div>
+    </div>
+
+    <nav class="sd-navigation" aria-label="Partner navigation">
+      <span class="sd-nav-label">Overview</span>
+
+      <a href="index.html" class="sd-nav-item is-active">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M4 13h6V4H4v9Zm10 7h6V11h-6v9ZM4 20h6v-3H4v3Zm10-13h6V4h-6v3Z"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.7"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <span>Dashboard</span>
+      </a>
+
+      <a href="deals.html" class="sd-nav-item">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M4 7.5h16v12H4zM7 7.5V5h10v2.5M8 12h8"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.7"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <span>Deals</span>
+      </a>
+
+      <a href="bookings.html" class="sd-nav-item">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M5 5.5h14v14H5zM8 3.5v4M16 3.5v4M5 9.5h14"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.7"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <span>Bookings</span>
+      </a>
+
+      <a href="vouchers.html" class="sd-nav-item">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M4 7h16v4a2.5 2.5 0 0 0 0 5v4H4v-4a2.5 2.5 0 0 0 0-5V7Z"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.7"
+            stroke-linejoin="round"
+          />
+          <path
+            d="M12 9v2M12 13v2M12 17v1"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.7"
+            stroke-linecap="round"
+          />
+        </svg>
+        <span>Vouchers</span>
+      </a>
+
+      <span class="sd-nav-label sd-nav-label-secondary">Account</span>
+
+      <a href="settings.html" class="sd-nav-item">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.7"
+          />
+          <path
+            d="m19 13.5 1.5 1.2-1.8 3.1-1.9-.8a7.5 7.5 0 0 1-2.1 1.2l-.3 2H10l-.3-2A7.5 7.5 0 0 1 7.6 17l-1.9.8-1.8-3.1L5.5 13a7.4 7.4 0 0 1 0-2L4 9.8l1.8-3.1 1.9.8a7.5 7.5 0 0 1 2.1-1.2l.3-2h3.7l.3 2a7.5 7.5 0 0 1 2.1 1.2l1.9-.8 1.8 3.1-1.5 1.2a7.4 7.4 0 0 1 0 2.5Z"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.4"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <span>Settings</span>
+      </a>
+    </nav>
+
+    <div class="sd-sidebar-footer">
+      <button id="sd-sidebar-logout" class="sd-logout-button" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M10 5H5v14h5M14 8l4 4-4 4M8 12h10"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.7"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <span>Sign out</span>
+      </button>
+
+      <span class="sd-version">Partner Portal · v1.0</span>
+    </div>
+  </aside>
+
+  <div class="sd-app-main">
+    <header class="sd-topbar">
+      <div class="sd-topbar-left">
+        <button
+          id="sd-menu-toggle"
+          class="sd-menu-toggle"
+          type="button"
+          aria-label="Open navigation"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M4 7h16M4 12h16M4 17h16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+            />
+          </svg>
+        </button>
+
+        <div>
+          <span class="sd-topbar-label">Partner Portal</span>
+          <strong id="sd-topbar-hotel">SeasonDeals hotel partner</strong>
+        </div>
+      </div>
+
+      <div class="sd-topbar-actions">
+        <button class="sd-icon-button" type="button" aria-label="Notifications">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M6.5 17h11l-1.5-2.3V10a4 4 0 0 0-8 0v4.7L6.5 17ZM10 19.5h4"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <span id="sd-notification-dot" class="sd-notification-dot"></span>
+        </button>
+
+        <div class="sd-user-menu-wrap">
+          <button id="sd-user-menu-button" class="sd-user-button" type="button">
+            <div id="sd-user-avatar" class="sd-user-avatar">J</div>
+
+            <div class="sd-user-button-copy">
+              <strong id="sd-user-name">Partner</strong>
+              <span id="sd-user-role">Hotel account</span>
+            </div>
+
+            <svg class="sd-chevron" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="m8 10 4 4 4-4"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+
+          <div id="sd-user-dropdown" class="sd-user-dropdown">
+            <div class="sd-dropdown-account">
+              <strong id="sd-dropdown-name">Partner</strong>
+              <span id="sd-dropdown-email">hotel@seasondeals.nl</span>
+            </div>
+
+            <a href="settings.html" class="sd-dropdown-item">Account settings</a>
+
+            <button id="sd-dropdown-logout" class="sd-dropdown-item sd-dropdown-logout" type="button">
+              Sign out
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="sd-content">
+      <section class="sd-page-header">
+        <div>
+          <span class="sd-page-eyebrow">Hotel overview</span>
+          <h1 id="sd-welcome-title">Welcome back</h1>
+          <p id="sd-welcome-text">
+            Here is the latest performance of your SeasonDeals account.
+          </p>
+        </div>
+
+        <div class="sd-page-header-actions">
+          <button id="sd-refresh-button" class="sd-secondary-button" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M20 7v5h-5M4 17v-5h5M18.3 9A7 7 0 0 0 6.1 6.3L4 9M5.7 15A7 7 0 0 0 17.9 17.7L20 15"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <span>Refresh</span>
+          </button>
+
+          <a href="deals.html" class="sd-primary-button">
+            Manage deals
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M5 12h14M14 7l5 5-5 5"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </a>
+        </div>
+      </section>
+
+      <div id="sd-global-message" class="sd-global-message" role="alert"></div>
+
+      <section id="sd-dashboard-loading" class="sd-dashboard-loading">
+        <div class="sd-kpi-grid">
+          <div class="sd-skeleton sd-skeleton-kpi"></div>
+          <div class="sd-skeleton sd-skeleton-kpi"></div>
+          <div class="sd-skeleton sd-skeleton-kpi"></div>
+          <div class="sd-skeleton sd-skeleton-kpi"></div>
+        </div>
+
+        <div class="sd-dashboard-grid">
+          <div class="sd-skeleton sd-skeleton-panel"></div>
+          <div class="sd-skeleton sd-skeleton-panel"></div>
+        </div>
+      </section>
+
+      <div id="sd-dashboard-content" class="sd-dashboard-content">
+        <section class="sd-kpi-grid">
+          <article class="sd-kpi-card">
+            <div class="sd-kpi-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M5 5.5h14v14H5zM8 3.5v4M16 3.5v4M5 9.5h14"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
+
+            <div class="sd-kpi-copy">
+              <span>Bookings</span>
+              <strong id="sd-kpi-bookings">0</strong>
+              <small id="sd-kpi-bookings-note">Total bookings</small>
+            </div>
+          </article>
+
+          <article class="sd-kpi-card">
+            <div class="sd-kpi-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M4 7.5h16v12H4zM7 7.5V5h10v2.5M8 12h8"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
+
+            <div class="sd-kpi-copy">
+              <span>Active deals</span>
+              <strong id="sd-kpi-deals">0</strong>
+              <small id="sd-kpi-deals-note">Currently online</small>
+            </div>
+          </article>
+
+          <article class="sd-kpi-card">
+            <div class="sd-kpi-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M4 7h16v4a2.5 2.5 0 0 0 0 5v4H4v-4a2.5 2.5 0 0 0 0-5V7Z"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
+
+            <div class="sd-kpi-copy">
+              <span>Active vouchers</span>
+              <strong id="sd-kpi-vouchers">0</strong>
+              <small id="sd-kpi-vouchers-note">Ready to redeem</small>
+            </div>
+          </article>
+
+          <article class="sd-kpi-card">
+            <div class="sd-kpi-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M4 19V9M10 19V5M16 19v-7M22 19H2"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
+
+            <div class="sd-kpi-copy">
+              <span>Revenue</span>
+              <strong id="sd-kpi-revenue">€0</strong>
+              <small id="sd-kpi-revenue-note">Confirmed revenue</small>
+            </div>
+          </article>
+        </section>
+
+        <section class="sd-dashboard-grid">
+          <article class="sd-panel sd-panel-large">
+            <div class="sd-panel-header">
+              <div>
+                <span class="sd-panel-eyebrow">Latest activity</span>
+                <h2>Recent bookings</h2>
+              </div>
+
+              <a href="bookings.html" class="sd-panel-link">
+                View all
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M5 12h14M14 7l5 5-5 5"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </a>
+            </div>
+
+            <div id="sd-bookings-list" class="sd-bookings-list"></div>
+
+            <div id="sd-bookings-empty" class="sd-empty-state">
+              <div class="sd-empty-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M5 5.5h14v14H5zM8 3.5v4M16 3.5v4M5 9.5h14"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </div>
+
+              <strong>No bookings yet</strong>
+              <p>New partner bookings will appear here automatically.</p>
+            </div>
+          </article>
+
+          <article class="sd-panel">
+            <div class="sd-panel-header">
+              <div>
+                <span class="sd-panel-eyebrow">Attention required</span>
+                <h2>Inventory alerts</h2>
+              </div>
+            </div>
+
+            <div id="sd-alerts-list" class="sd-alerts-list"></div>
+
+            <div id="sd-alerts-empty" class="sd-empty-state sd-empty-state-small">
+              <div class="sd-empty-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="m12 4 8 15H4L12 4ZM12 9v4M12 16h.01"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </div>
+
+              <strong>No inventory warnings</strong>
+              <p>Your current deal inventory looks healthy.</p>
+            </div>
+          </article>
+
+          <article id="sd-notifications-panel" class="sd-panel">
+            <div class="sd-panel-header">
+              <div>
+                <span class="sd-panel-eyebrow">Account updates</span>
+                <h2>Notifications</h2>
+              </div>
+            </div>
+
+            <div id="sd-notifications-list" class="sd-notifications-list"></div>
+
+            <div id="sd-notifications-empty" class="sd-empty-state sd-empty-state-small">
+              <div class="sd-empty-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M6.5 17h11l-1.5-2.3V10a4 4 0 0 0-8 0v4.7L6.5 17ZM10 19.5h4"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </div>
+
+              <strong>You are all caught up</strong>
+              <p>New SeasonDeals notifications will appear here.</p>
+            </div>
+          </article>
+        </section>
+
+        <section id="sd-debug-panel" class="sd-debug-panel">
+          <div>
+            <strong>Dashboard connected successfully</strong>
+            <p>
+              Xano returned data, but some field names are not yet mapped to the dashboard.
+              Copy the technical response below and send it to me so we can map every widget exactly.
+            </p>
+          </div>
+
+          <button id="sd-debug-toggle" type="button">Show response</button>
+
+          <pre id="sd-debug-output"></pre>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+
+  <script src="js/partner-common.js?v=20260722-1"></script>
+  <script src="js/app.js?v=20260720-1"></script>
+</body>
+</html>

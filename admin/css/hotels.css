@@ -1,0 +1,26 @@
+.hotel-header-actions{display:flex;align-items:center;gap:9px}
+.hotel-modal{position:fixed;inset:0;z-index:100;display:none;place-items:center;padding:20px;background:rgba(4,40,33,.58)}
+.hotel-modal.is-open{display:grid}
+.hotel-dialog{position:relative;width:min(720px,100%);max-height:calc(100vh - 40px);padding:30px;border-radius:20px;background:#fff;box-shadow:var(--shadow);overflow-y:auto}
+.hotel-dialog h2{margin:4px 0 8px;color:var(--green);font:700 31px 'Cormorant Garamond',serif}
+.hotel-dialog-intro{max-width:580px;margin:0;color:var(--muted);font-size:11px;line-height:1.65}
+.hotel-dialog-close{position:absolute;right:16px;top:16px;width:36px;height:36px;border:1px solid var(--line);border-radius:50%;background:#fff;color:var(--green);font-size:20px;cursor:pointer}
+.hotel-create-error{display:none;margin-top:16px}
+.hotel-create-error.is-visible{display:block}
+.hotel-create-form{margin-top:20px;display:grid;gap:18px}
+.hotel-create-form fieldset{margin:0;padding:17px;border:1px solid var(--line);border-radius:14px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.hotel-create-form legend{padding:0 7px;color:var(--green);font:700 18px 'Cormorant Garamond',serif}
+.hotel-create-form label{display:grid;gap:7px;color:var(--green);font-size:10px;font-weight:700}
+.hotel-create-form label>span{color:var(--orange)}
+.hotel-create-form input{width:100%;height:44px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);outline:0}
+.hotel-create-form input:focus{border-color:var(--orange);box-shadow:0 0 0 3px rgba(248,102,11,.1)}
+.hotel-password-field,.hotel-password-help{grid-column:1/-1}
+.hotel-password-field>label{margin-bottom:7px}
+.hotel-password-control{display:flex;gap:8px}
+.hotel-password-control input{flex:1}
+.hotel-password-control .secondary-button{min-width:76px}
+.hotel-password-help{display:flex;align-items:center;justify-content:space-between;gap:15px;color:var(--muted);font-size:9px}
+.hotel-password-help button{padding:0;border:0;background:transparent;color:var(--orange);font-size:9px;font-weight:800;cursor:pointer}
+.hotel-form-actions{display:flex;justify-content:flex-end;gap:9px;padding-top:2px}
+body.has-modal{overflow:hidden}
+@media(max-width:620px){.hotel-header-actions,.hotel-form-actions,.hotel-password-help{align-items:stretch;flex-direction:column}.hotel-header-actions button,.hotel-form-actions button{width:100%}.hotel-create-form fieldset{grid-template-columns:1fr}.hotel-password-field,.hotel-password-help{grid-column:auto}.hotel-dialog{padding:27px 20px}.hotel-password-control{align-items:stretch;flex-direction:column}.hotel-password-control .secondary-button{width:100%}}

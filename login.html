@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>SeasonDeals Partner Login</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <style>
+    :root {
+      --green: #042821;
+      --green-soft: #123a33;
+      --orange: #f8660b;
+      --beige: #f7f3ed;
+      --white: #ffffff;
+      --text: #1b2926;
+      --muted: #6d7976;
+      --border: #ded8cf;
+      --danger: #b42318;
+      --danger-bg: #fef3f2;
+      --shadow: 0 24px 70px rgba(4, 40, 33, 0.16);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      min-height: 100%;
+      margin: 0;
+    }
+
+    body {
+      font-family: "Inter", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(248, 102, 11, 0.10), transparent 28%),
+        linear-gradient(135deg, var(--beige), #eee7dc);
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    .page {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(420px, 0.95fr);
+    }
+
+    .visual {
+      position: relative;
+      overflow: hidden;
+      padding: 56px;
+      background:
+        linear-gradient(rgba(4, 40, 33, 0.78), rgba(4, 40, 33, 0.92)),
+        url("https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1600&q=85")
+        center/cover no-repeat;
+      color: var(--white);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+      width: fit-content;
+      text-decoration: none;
+      color: var(--white);
+    }
+
+    .brand-mark {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background: var(--orange);
+      font-family: "Cormorant Garamond", serif;
+      font-size: 29px;
+      font-weight: 700;
+      box-shadow: 0 12px 32px rgba(248, 102, 11, 0.28);
+    }
+
+    .brand-name {
+      font-family: "Cormorant Garamond", serif;
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .visual-copy {
+      max-width: 650px;
+      margin: 90px 0 40px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      padding: 8px 13px;
+      border: 1px solid rgba(255,255,255,0.24);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.08);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+    }
+
+    .visual h1 {
+      margin: 24px 0 18px;
+      font-family: "Cormorant Garamond", serif;
+      font-size: clamp(48px, 6vw, 82px);
+      line-height: 0.96;
+      letter-spacing: -0.035em;
+    }
+
+    .visual p {
+      max-width: 560px;
+      margin: 0;
+      color: rgba(255,255,255,0.78);
+      font-size: 17px;
+      line-height: 1.75;
+    }
+
+    .visual-footer {
+      color: rgba(255,255,255,0.55);
+      font-size: 13px;
+    }
+
+    .login-side {
+      display: grid;
+      place-items: center;
+      padding: 42px;
+    }
+
+    .card {
+      width: min(100%, 520px);
+      padding: 46px;
+      border: 1px solid rgba(255,255,255,0.8);
+      border-radius: 28px;
+      background: rgba(255,255,255,0.88);
+      backdrop-filter: blur(18px);
+      box-shadow: var(--shadow);
+    }
+
+    .mobile-brand {
+      display: none;
+      margin-bottom: 30px;
+      color: var(--green);
+    }
+
+    .mobile-brand .brand-mark {
+      color: var(--white);
+    }
+
+    .heading {
+      margin-bottom: 30px;
+    }
+
+    .heading h2 {
+      margin: 0 0 9px;
+      color: var(--green);
+      font-family: "Cormorant Garamond", serif;
+      font-size: 43px;
+      line-height: 1;
+      letter-spacing: -0.025em;
+    }
+
+    .heading p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .field {
+      margin-bottom: 19px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--green);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .input-wrap {
+      position: relative;
+    }
+
+    input {
+      width: 100%;
+      height: 54px;
+      padding: 0 16px;
+      border: 1px solid var(--border);
+      border-radius: 13px;
+      outline: none;
+      color: var(--text);
+      background: rgba(255,255,255,0.92);
+      transition: border-color .2s, box-shadow .2s;
+    }
+
+    input:focus {
+      border-color: var(--orange);
+      box-shadow: 0 0 0 4px rgba(248, 102, 11, 0.12);
+    }
+
+    .password-input {
+      padding-right: 58px;
+    }
+
+    .toggle-password {
+      position: absolute;
+      top: 50%;
+      right: 8px;
+      transform: translateY(-50%);
+      border: 0;
+      border-radius: 9px;
+      padding: 8px 10px;
+      color: var(--muted);
+      background: transparent;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .toggle-password:hover {
+      background: var(--beige);
+      color: var(--green);
+    }
+
+    .message {
+      display: none;
+      margin: 0 0 18px;
+      padding: 13px 14px;
+      border-radius: 12px;
+      color: var(--danger);
+      background: var(--danger-bg);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .message.is-visible {
+      display: block;
+    }
+
+    .submit {
+      width: 100%;
+      height: 56px;
+      margin-top: 7px;
+      border: 0;
+      border-radius: 14px;
+      color: var(--white);
+      background: var(--orange);
+      cursor: pointer;
+      font-weight: 800;
+      transition: transform .2s, opacity .2s, box-shadow .2s;
+      box-shadow: 0 12px 28px rgba(248, 102, 11, 0.24);
+    }
+
+    .submit:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 34px rgba(248, 102, 11, 0.3);
+    }
+
+    .submit:disabled {
+      cursor: wait;
+      opacity: .72;
+    }
+
+    .support {
+      margin: 24px 0 0;
+      color: var(--muted);
+      text-align: center;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .support a {
+      color: var(--green);
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    @media (max-width: 920px) {
+      .page {
+        grid-template-columns: 1fr;
+      }
+
+      .visual {
+        display: none;
+      }
+
+      .login-side {
+        min-height: 100vh;
+        padding: 24px;
+      }
+
+      .mobile-brand {
+        display: inline-flex;
+      }
+
+      .card {
+        padding: 34px 26px;
+        border-radius: 22px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="page">
+    <section class="visual" aria-hidden="true">
+      <a class="brand" href="#">
+        <span class="brand-mark">S</span>
+        <span class="brand-name">SeasonDeals</span>
+      </a>
+
+      <div class="visual-copy">
+        <span class="eyebrow">Partner Portal</span>
+        <h1>Beheer jouw hoteldeals op één plek.</h1>
+        <p>
+          Bekijk boekingen, omzet, vouchers, voorraadmeldingen en updates
+          rechtstreeks vanuit jouw SeasonDeals partnerdashboard.
+        </p>
+      </div>
+
+      <div class="visual-footer">
+        © 2026 SeasonDeals. Exclusief voor aangesloten hotelpartners.
+      </div>
+    </section>
+
+    <section class="login-side">
+      <div class="card">
+        <a class="brand mobile-brand" href="#">
+          <span class="brand-mark">S</span>
+          <span class="brand-name">SeasonDeals</span>
+        </a>
+
+        <div class="heading">
+          <h2>Welkom terug</h2>
+          <p>Log in met jouw partneraccount om verder te gaan.</p>
+        </div>
+
+        <div id="login-message" class="message" role="alert"></div>
+
+        <form id="login-form" novalidate>
+          <div class="field">
+            <label for="email">E-mailadres</label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autocomplete="email"
+              placeholder="naam@hotel.nl"
+              required
+            />
+          </div>
+
+          <div class="field">
+            <label for="password">Wachtwoord</label>
+            <div class="input-wrap">
+              <input
+                id="password"
+                class="password-input"
+                name="password"
+                type="password"
+                autocomplete="current-password"
+                placeholder="Vul je wachtwoord in"
+                required
+              />
+              <button
+                id="toggle-password"
+                class="toggle-password"
+                type="button"
+                aria-label="Wachtwoord tonen"
+              >
+                Toon
+              </button>
+            </div>
+          </div>
+
+          <button id="submit-button" class="submit" type="submit">
+            Inloggen
+          </button>
+        </form>
+
+        <p class="support">
+          Problemen met inloggen?
+          <a href="mailto:info@seasondeals.nl">Neem contact op met SeasonDeals</a>
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+    const CONFIG = {
+  loginEndpoint:
+    "https://xgrq-dkge-tace.n7e.xano.io/api:seasondeals-partner/auth/login",
+  dashboardUrl:
+    "/seasondeals-public-assets/index.html",
+  tokenKey: "sd_partner_token",
+  userKey: "sd_partner_user"
+};
+
+      const form = document.getElementById("login-form");
+      const emailInput = document.getElementById("email");
+      const passwordInput = document.getElementById("password");
+      const submitButton = document.getElementById("submit-button");
+      const message = document.getElementById("login-message");
+      const togglePassword = document.getElementById("toggle-password");
+
+      const existingToken = sessionStorage.getItem(CONFIG.tokenKey);
+
+      if (existingToken) {
+        window.location.replace(CONFIG.dashboardUrl);
+        return;
+      }
+
+      togglePassword.addEventListener("click", () => {
+        const isPassword = passwordInput.type === "password";
+        passwordInput.type = isPassword ? "text" : "password";
+        togglePassword.textContent = isPassword ? "Verberg" : "Toon";
+        togglePassword.setAttribute(
+          "aria-label",
+          isPassword ? "Wachtwoord verbergen" : "Wachtwoord tonen"
+        );
+      });
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        clearMessage();
+
+        const email = emailInput.value.trim();
+        const password = passwordInput.value;
+
+        if (!email || !password) {
+          showMessage("Vul je e-mailadres en wachtwoord in.");
+          return;
+        }
+
+        setLoading(true);
+
+        try {
+          const response = await fetch(CONFIG.loginEndpoint, {
+            method: "POST",
+            mode: "cors",
+            credentials: "omit",
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              email,
+              password
+            })
+          });
+
+          const data = await readResponse(response);
+
+          if (!response.ok) {
+            const apiMessage =
+              data?.message ||
+              data?.error ||
+              data?.detail ||
+              "Inloggen is mislukt. Controleer je gegevens.";
+
+            throw new Error(
+              typeof apiMessage === "string"
+                ? apiMessage
+                : "Inloggen is mislukt. Controleer je gegevens."
+            );
+          }
+
+          const token =
+            data?.authToken ||
+            data?.auth_token ||
+            data?.token ||
+            data?.jwt ||
+            data?.access_token ||
+            data?.data?.authToken ||
+            data?.data?.auth_token ||
+            data?.data?.token ||
+            data?.data?.jwt ||
+            data?.data?.access_token;
+
+          if (!token) {
+            console.error("Login response zonder herkenbare token:", data);
+            throw new Error(
+              "De login is ontvangen, maar er is geen toegangstoken teruggegeven."
+            );
+          }
+
+          const user =
+            data?.user ||
+            data?.partner ||
+            data?.hotel_user ||
+            data?.data?.user ||
+            data?.data?.partner ||
+            {
+              email
+            };
+
+          sessionStorage.setItem(CONFIG.tokenKey, token);
+          sessionStorage.setItem(CONFIG.userKey, JSON.stringify(user));
+
+          window.location.replace(CONFIG.dashboardUrl);
+        } catch (error) {
+          console.error("SeasonDeals login failed:", error);
+          showMessage(
+            error?.message ||
+              "De loginservice kon niet worden bereikt. Probeer het opnieuw."
+          );
+        } finally {
+          setLoading(false);
+        }
+      });
+
+      async function readResponse(response) {
+        const text = await response.text();
+
+        if (!text) {
+          return {};
+        }
+
+        try {
+          return JSON.parse(text);
+        } catch {
+          return {
+            message: text
+          };
+        }
+      }
+
+      function setLoading(isLoading) {
+        submitButton.disabled = isLoading;
+        submitButton.textContent = isLoading
+          ? "Bezig met inloggen..."
+          : "Inloggen";
+      }
+
+      function showMessage(text) {
+        message.textContent = text;
+        message.classList.add("is-visible");
+      }
+
+      function clearMessage() {
+        message.textContent = "";
+        message.classList.remove("is-visible");
+      }
+    })();
+  </script>
+</body>
+</html>
