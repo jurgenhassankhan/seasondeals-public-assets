@@ -8,6 +8,7 @@
     processing: ['Betaling ontvangen, reservering in behandeling', 'Je hotelboeking wordt verwerkt. Zodra het hotel is bevestigd, verschijnen hier je reserveringsgegevens. Boek of betaal niet opnieuw.'],
     confirmed: ['Je reservering is bevestigd', 'Je betaling is ontvangen en je verblijf is vastgelegd voor de onderstaande data.'],
     needs_attention: ['We controleren je reservering', 'Je reservering heeft extra controle nodig. Boek of betaal niet opnieuw. Neem contact op met onze klantenservice als je hulp nodig hebt.'],
+    refunded: ['Je betaling is terugbetaald', 'De volledige terugbetaling is door onze betaalprovider bevestigd. Je bank kan nog verwerkingstijd nodig hebben. Dit is geen bevestiging van een hotelannulering; neem bij vragen over je verblijf contact met ons op.'],
     cancelled: ['Deze reservering is geannuleerd', 'Gebruik de eerdere voucher niet meer. Bekijk je e-mail of neem contact op met ons voor de annuleringsvoorwaarden en de status van een eventuele terugbetaling.'],
     unavailable: ['Bevestiging niet beschikbaar', 'Deze link ontbreekt, is verlopen of kan niet worden gecontroleerd. Bekijk je bevestigingsmail of neem contact op met onze klantenservice. Dit betekent niet dat je boeking is mislukt.'],
     interrupted: ['Je bent terug van de betaalpagina', 'Hiermee is niet vastgesteld of je betaling is afgerond. Bekijk je e-mail of neem contact op met ons voordat je opnieuw betaalt.'],
@@ -18,6 +19,7 @@
     let state = Object.hasOwn(copy, data.state) ? data.state : 'unavailable';
     const b = data.booking;
     if (state === 'confirmed' && (data.schema_version !== 1 || data.environment !== 'production' || data.payment_status !== 'paid' || !b?.booking_reference)) state = 'unavailable';
+    if (state === 'refunded' && (data.schema_version !== 1 || data.environment !== 'production' || data.payment_status !== 'refunded' || data.refund?.status !== 'full')) state = 'unavailable';
     const confirmed = state === 'confirmed';
     const paidAttention = state === 'needs_attention' && data.schema_version === 1 && data.environment === 'production' && data.payment_status === 'paid';
     const [title, message] = paidAttention ? ['Betaling ontvangen, reservering nog niet bevestigd', 'We controleren je reservering. Boek of betaal niet opnieuw. Je kunt hier de status opnieuw bekijken of contact opnemen met onze klantenservice.'] : copy[state];
