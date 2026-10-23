@@ -94,7 +94,7 @@
       };
 
       if (image) product.image = [image];
-      if (!deal.stay_policy?.enabled && price > 0) {
+      if (!deal.stay_policy?.enabled && price > 0 && (deal.source !== "provider_sync" || (deal.price_is_current === true && deal.booking_enabled === true))) {
         product.offers = {
           "@type": "Offer",
           priceCurrency: CONFIG.currency,
@@ -313,7 +313,8 @@
     const image = getImage(deal);
     const price = getPositiveNumber(deal.deal_price, deal.price);
     const originalPrice = getNumber(deal.original_price);
-    const discount = !flexible && originalPrice && price < originalPrice ? Math.round((1 - price / originalPrice) * 100) : 0;
+    const checking = deal.source === "provider_sync" && !flexible && deal.price_is_current !== true;
+    const discount = !checking && !flexible && originalPrice && price < originalPrice ? Math.round((1 - price / originalPrice) * 100) : 0;
     const remaining = getRemaining(deal);
     const features = getFeatures(deal).slice(0, 4);
     const city = displayCity(deal.city || deal.hotel?.city);
@@ -328,7 +329,7 @@
       <div class="deal-image">
         ${image ? `<img src="${escapeAttribute(image)}" alt="${escapeAttribute(title)}" loading="lazy">` : `<div class="deal-image-placeholder"><span>SeasonDeals</span><small>Hot offers, cool prices</small></div>`}
         ${discount ? `<span class="discount">-${discount}%</span>` : ""}
-        ${flexible ? '<span class="stock-badge">Wordt gecontroleerd</span>' : deal.source === "provider_sync" ? '<span class="stock-badge">Beschikbaar</span>' : remaining !== null ? `<span class="stock-badge${remaining <= 5 ? " is-low" : ""}">${remaining === 0 ? "Uitverkocht" : `Nog ${formatNumber(remaining)} beschikbaar`}</span>` : ""}
+        ${flexible ? '<span class="stock-badge">Wordt gecontroleerd</span>' : deal.source === "provider_sync" ? `<span class="stock-badge">${checking ? "Wordt bijgewerkt" : "Beschikbaar"}</span>` : remaining !== null ? `<span class="stock-badge${remaining <= 5 ? " is-low" : ""}">${remaining === 0 ? "Uitverkocht" : `Nog ${formatNumber(remaining)} beschikbaar`}</span>` : ""}
       </div>
       <div class="deal-card-body">
         <span class="deal-type">${escapeHtml(formatCategory(category))}${city ? ` · ${escapeHtml(city)}` : ""}</span>
@@ -336,7 +337,7 @@
         <div class="deal-partner">${escapeHtml(hotel)}</div>
         ${rating > 0 ? `<div class="rating"><span>★</span> ${escapeHtml(formatDecimal(rating))}${reviews > 0 ? ` · ${escapeHtml(formatNumber(reviews))} beoordelingen` : ""}</div>` : ""}
         <ul>${features.length ? features.map((feature) => `<li>✓ ${escapeHtml(feature)}</li>`).join("") : `<li>Bekijk de deal voor alle details</li>`}</ul>
-        <div class="price-row"><span>${!flexible && originalPrice > price ? `<del>${escapeHtml(formatCurrency(originalPrice))}</del>` : ""}<strong>${flexible ? "Prijs ophalen…" : `Vanaf ${escapeHtml(formatCurrency(price))}`}</strong><small>${flexible ? "Controleer prijs en beschikbaarheid" : remaining === null ? "Bekijk de actuele beschikbaarheid" : `Actuele voorraad: ${formatNumber(remaining)}`}</small></span><a href="${escapeAttribute(detailUrl)}">Bekijk deal →</a></div>
+        <div class="price-row"><span>${!checking && !flexible && originalPrice > price ? `<del>${escapeHtml(formatCurrency(originalPrice))}</del>` : ""}<strong>${flexible ? "Prijs ophalen…" : `${checking ? "Laatst bekend" : "Vanaf"} ${escapeHtml(formatCurrency(price))}`}</strong><small>${checking ? "Prijs en beschikbaarheid worden bijgewerkt" : flexible ? "Controleer prijs en beschikbaarheid" : remaining === null ? "Bekijk de actuele beschikbaarheid" : `Actuele voorraad: ${formatNumber(remaining)}`}</small></span><a href="${escapeAttribute(detailUrl)}">Bekijk deal →</a></div>
       </div>`;
     return card;
   }
