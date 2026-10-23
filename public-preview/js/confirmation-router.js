@@ -50,6 +50,7 @@
       if ([400,401,403,404].includes(response.status)) return show({state:'unavailable'});
       if (!response.ok) throw new Error('Status unavailable');
       const data = await response.json();
+      if (request !== sequence) return;
       if (data.schema_version !== 1 || data.environment !== mode) return show({state:'unavailable'});
       show(data);
       const wait = ['pending_payment','processing'].includes(data.state) || (data.state === 'confirmed' && (!data.voucher || data.mail_status !== 'sent'));
@@ -59,6 +60,9 @@
     finally { clearTimeout(timeout); }
   }
   window.addEventListener('pagehide', () => { clearTimeout(timer); sequence++; controller?.abort(); });
+  window.addEventListener('pageshow', event => {
+    if (event.persisted) { attempts = 0; load(); }
+  });
   show({state:'loading'});
   load();
 })();

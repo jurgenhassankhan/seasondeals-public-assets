@@ -228,6 +228,20 @@ function dealAmenityDetail(label, detail) {
     }
   }
 
+  // A back/forward-cache restore preserves JS state, including the redirect lock.
+  // Restore the controls without replacing the saved request key or creating an order.
+  window.addEventListener?.("pageshow", event => {
+    if (!event.persisted) return;
+    const wasRedirecting = checkoutBusy;
+    checkoutBusy = false;
+    const button = document.getElementById("sd-check-availability");
+    if (button) {
+      button.disabled = deal?.source === "provider_sync" && deal.booking_enabled !== true;
+      button.innerHTML = "Bekijk beschikbaarheid & boek <span>→</span>";
+    }
+    if (wasRedirecting) showBookingMessage("Je bent terug van de betaalpagina. Controleer je e-mail of de status van je boeking voordat je opnieuw betaalt.", "info");
+  });
+
   // Read-only date selection. An explicit server policy enables it per supplier deal.
   // This flow never calls checkout and cannot open production booking gates.
   async function initStayChoice(knownPolicy) {
