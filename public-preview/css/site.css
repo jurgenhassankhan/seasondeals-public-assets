@@ -22,3 +22,9 @@
 .deal-pagination button:focus-visible{outline:3px solid var(--orange);outline-offset:3px}
 .deal-pagination span{color:var(--green);padding:0 3px}
 @media(max-width:600px){.deal-pagination{gap:6px}.deal-pagination button{padding:10px 12px}}
+
+/* DEAL-CARD-LINK-01: stretch the existing native link over the entire card. */
+.deal-card{position:relative}
+.deal-card .price-row a::after{content:"";position:absolute;inset:0;z-index:1;border-radius:17px;cursor:pointer}
+.deal-card .price-row a:focus-visible::after{outline:3px solid var(--orange);outline-offset:-3px}
+.deal-card .deal-image button{z-index:2}
