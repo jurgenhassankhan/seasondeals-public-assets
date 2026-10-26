@@ -17,6 +17,7 @@
   let deals = [];
   let activeFilter = "all";
   let locationQuery = "";
+  let searchStay = null;
   const DEALS_PER_PAGE = 8;
   let currentPage = 1;
   let pagination;
@@ -172,7 +173,74 @@
     }));
   }
 
+  function localToday() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  }
+
+  function searchDate(value) {
+    if (typeof value === "number" && value > 0) {
+      const d = new Date(value);
+      return Number.isFinite(d.getTime()) ? d.toISOString().slice(0,10) : "";
+    }
+    if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return "";
+    const d = new Date(value + "T00:00:00Z");
+    return Number.isFinite(d.getTime()) && d.toISOString().slice(0,10) === value ? value : "";
+  }
+
+  function searchDateError(arrival, departure, today) {
+    if (!arrival && !departure) return "";
+    if (!arrival || !departure) return "Kies zowel een aankomst- als vertrekdatum, of wis beide datums.";
+    if (!searchDate(arrival) || !searchDate(departure)) return "Kies geldige datums.";
+    if (arrival < today) return "De aankomstdatum mag niet in het verleden liggen.";
+    if (departure <= arrival) return "De vertrekdatum moet na de aankomstdatum liggen.";
+    return "";
+  }
+
+  function matchesSearchStay(deal, stay) {
+    if (!stay) return true;
+    if (searchDateError(stay.checkin, stay.checkout, "0000-00-00")) return false;
+    const policy = deal.stay_policy;
+    const nights = (Date.parse(stay.checkout)-Date.parse(stay.checkin))/86400000;
+    if (policy?.enabled === true) {
+      return !!searchDate(policy.start) && !!searchDate(policy.end) &&
+        stay.checkin >= policy.start && stay.checkout <= policy.end &&
+        Number.isInteger(policy.min_nights) && Number.isInteger(policy.max_nights) &&
+        nights >= policy.min_nights && nights <= policy.max_nights;
+    }
+    const start = searchDate(deal.travel_period_start), end = searchDate(deal.travel_period_end);
+    if (!start || !end) return false;
+    if (deal.source === "provider_sync") return stay.checkin === start && stay.checkout === end;
+    return stay.checkin >= start && stay.checkout <= end && nights >= (Number(deal.minimum_nights) || 1);
+  }
+
+  function bindDateSearch() {
+    const form = document.getElementById("deal-search");
+    if (!form) return;
+    const legacy = form.querySelectorAll(".search-control")[2];
+    const dates = document.createElement("div");
+    dates.className = "search-control search-dates";
+    dates.innerHTML = `<div class="search-date-fields">
+      <label class="control-copy" for="search-checkin"><small>Aankomst</small><input id="search-checkin" name="checkin" type="date" aria-describedby="search-date-hint"></label>
+      <label class="control-copy" for="search-checkout"><small>Vertrek</small><input id="search-checkout" name="checkout" type="date" aria-describedby="search-date-hint"></label>
+      </div><div class="search-date-options"><small id="search-date-hint">Optioneel</small><button id="clear-search-dates" type="button">Datums wissen</button></div>`;
+    legacy?.replaceWith(dates);
+    const arrival = document.getElementById("search-checkin"), departure = document.getElementById("search-checkout");
+    if (!arrival || !departure) return;
+    arrival.min = localToday(); departure.min = localToday();
+    const update = () => {
+      departure.setCustomValidity("");
+      departure.min = arrival.value ? new Date(Date.parse(arrival.value)+86400000).toISOString().slice(0,10) : localToday();
+    };
+    arrival.addEventListener("input", update);
+    departure.addEventListener("input", () => departure.setCustomValidity(""));
+    document.getElementById("clear-search-dates").addEventListener("click", () => {
+      arrival.value = ""; departure.value = ""; searchStay = null; update(); currentPage = 1; renderDeals();
+    });
+  }
+
   function bindDealControls() {
+    bindDateSearch();
     pagination = document.createElement("nav");
     pagination.className = "deal-pagination";
     pagination.setAttribute("aria-label", "Dealpagina’s");
@@ -205,6 +273,12 @@
 
     document.getElementById("deal-search")?.addEventListener("submit", (event) => {
       event.preventDefault();
+      const arrival = document.getElementById("search-checkin");
+      const departure = document.getElementById("search-checkout");
+      const error = searchDateError(arrival.value, departure.value, localToday());
+      departure.setCustomValidity(error);
+      if (error) { departure.reportValidity(); return; }
+      searchStay = arrival.value ? {checkin: arrival.value, checkout: departure.value} : null;
       activeFilter = document.getElementById("search-category")?.value || "all";
       locationQuery = document.getElementById("search-location")?.value.trim().toLocaleLowerCase("nl") || "";
       currentPage = 1;
@@ -276,7 +350,7 @@
     const filtered = deals.filter((deal) => {
       const categoryMatch = activeFilter === "all" || getCategory(deal) === activeFilter;
       const haystack = [deal.title, deal.hotel_name, deal.city, displayCity(deal.city || deal.hotel?.city), deal.country, deal.hotel?.name, deal.hotel?.city].filter(Boolean).join(" ").toLocaleLowerCase("nl");
-      return categoryMatch && (!locationQuery || haystack.includes(locationQuery));
+      return categoryMatch && (!locationQuery || haystack.includes(locationQuery)) && matchesSearchStay(deal, searchStay);
     }).sort((a, b) => {
       // Sort the whole selection before pagination; unpriced offers come last.
       const priceA = a.stay_policy?.enabled ? Infinity : getPositiveNumber(a.deal_price, a.price) || Infinity;
@@ -289,7 +363,7 @@
     currentPage = Math.max(1, Math.min(currentPage, pageCount));
     renderPagination(pageCount);
     if (!filtered.length) {
-      setMessage(deals.length ? "Voor deze selectie zijn momenteel geen deals beschikbaar." : "Er staan momenteel geen actieve deals online.", "empty");
+      setMessage(deals.length ? "Geen deals gevonden voor deze selectie. Kies andere datums of wis de datums om meer deals te bekijken." : "Er staan momenteel geen actieve deals online.", "empty");
       return;
     }
 
@@ -387,12 +461,13 @@
   }
 
   async function getCardQuote(deal) {
-    const key=JSON.stringify([deal.id,deal.stay_policy]);
+    const requestedStay = searchStay ? {...searchStay, guests:deal.stay_policy.guests} : null;
+    const key=JSON.stringify([deal.id,deal.stay_policy,requestedStay]);
     const cached=cardQuotes.get(key);
     if(cached && cached.until>Date.now())return cached.promise;
     const entry={until:Date.now()+60000};
     entry.promise=(async()=>{
-      for(const stay of cardStayCandidates(deal.stay_policy)){
+      for(const stay of (requestedStay ? [requestedStay] : cardStayCandidates(deal.stay_policy))){
         const response=await fetch(CONFIG.dealsEndpoint.replace(/\/deals$/, '/supplier/production/stay-options'),{method:'POST',mode:'cors',credentials:'omit',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({deal_id:Number(deal.id),stay}),signal:AbortSignal.timeout(25000)});
         if(!response.ok)throw Error('Prijscontrole niet gelukt');
         const r=await response.json();
