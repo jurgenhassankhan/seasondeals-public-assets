@@ -35,26 +35,40 @@ function dealAmenityDetail(label, detail) {
   let gallery = [];
   let activePhoto = 0;
   let checkoutBusy = false;
+  let dealLoading = false;
+  let dealRetry;
+  let renderedDeal = null;
+  let stayCapability = null;
+  document.addEventListener('visibilitychange',()=>{
+    if (!document.hidden && deal?.price_is_current === false) loadDeal();
+  });
 
   if (!dealId) return showError("Geen deal geselecteerd", "Open een deal via de SeasonDeals-homepage om alle informatie te bekijken.");
   loadDeal();
 
   async function loadDeal() {
+    if (dealLoading) return;
+    if (checkoutBusy) { clearTimeout(dealRetry); dealRetry=setTimeout(loadDeal,15000); return; }
+    clearTimeout(dealRetry);
+    if (document.hidden) return;
+    dealLoading = true;
+    const previousDeal = deal;
+    let pendingDeal=previousDeal;
     try {
-      const response = await fetch(cmsDealId ? `${CONFIG.dealsEndpoint}/${encodeURIComponent(dealId)}` : CONFIG.dealsEndpoint, { method: "GET", mode: "cors", credentials: "omit", headers: { Accept: "application/json" } });
+      const response = await fetch(cmsDealId ? `${CONFIG.dealsEndpoint}/${encodeURIComponent(dealId)}` : CONFIG.dealsEndpoint, { method: "GET", mode: "cors", credentials: "omit", cache: "no-store", signal: AbortSignal.timeout(15000), headers: { Accept: "application/json" } });
       const data = response.ok ? await response.json() : null;
-      deal = cmsDealId ? (data?.deal || data) : resolveDeals(data).find((item) => String(item?.id) === String(dealId));
-      if (String(deal?.id) !== String(dealId)) deal = null;
-      if (!deal || deal.source === 'provider_sync') {
+      pendingDeal = cmsDealId ? (data?.deal || data) : resolveDeals(data).find((item) => String(item?.id) === String(dealId));
+      if (String(pendingDeal?.id) !== String(dealId)) pendingDeal = null;
+      if (!pendingDeal || pendingDeal.source === 'provider_sync') {
       // Approved flexible stays remain accessible even when the old fixed offer expires.
       // The capability endpoint independently checks approval and exact supplier identity.
       try {
         const capResponse=await fetch(CONFIG.dealsEndpoint.replace(/\/deals$/, '/supplier/production/stay-options'),{method:'POST',mode:'cors',credentials:'omit',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({deal_id:Number(dealId),stay:null}),signal:AbortSignal.timeout(15000)});
-        if(capResponse.ok){const p=await capResponse.json();if(validStayPolicy(p,Number(dealId))&&p.deal?.id===Number(dealId)&&p.deal.source==='provider_sync'&&p.deal.booking_enabled===false){deal={...(deal?.content_verified===true?deal:{}),...p.deal};gallery=getImages(deal);renderFlexibleDeal(p);bindDealEvents();await initStayChoice(p);return;}}
+        if(capResponse.ok){const p=await capResponse.json();stayCapability=p;if(validStayPolicy(p,Number(dealId))&&p.deal?.id===Number(dealId)&&p.deal.source==='provider_sync'&&p.deal.booking_enabled===false){pendingDeal={...(pendingDeal?.content_verified===true?pendingDeal:{}),...p.deal};if(checkoutBusy)return;deal=pendingDeal;gallery=getImages(pendingDeal);renderFlexibleDeal(p);bindDealEvents();await initStayChoice(p);return;}}
       }catch{}
       }
       if (!response.ok) throw new Error(`De dealservice gaf status ${response.status}.`);
-      if (!deal || !isPublicDeal(deal)) {
+      if (!pendingDeal || !isPublicDeal(pendingDeal)) {
         // Hidden supplier offers are absent from /deals. Resolve their public status
         // separately so old links retain the reason; concepts remain protected by 404.
         const statusResponse = await fetch(CONFIG.dealsEndpoint.replace(/\/deals$/, '/supplier/production/availability-status'), {method:'POST',mode:'cors',credentials:'omit',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({deal_id:Number(dealId)})});
@@ -64,7 +78,7 @@ function dealAmenityDetail(label, detail) {
         }
         return showError("Deze deal is niet beschikbaar", "De aanbieding is mogelijk afgelopen, uitverkocht of tijdelijk offline.");
       }
-      if(deal.source==='provider_sync') {
+      if(pendingDeal.source==='provider_sync') {
         let availability={status:'unknown',available:false};
         try {
           const statusResponse=await fetch(CONFIG.dealsEndpoint.replace(/\/deals$/, '/supplier/production/availability-status'),{method:'POST',mode:'cors',credentials:'omit',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({deal_id:Number(dealId)}),signal:AbortSignal.timeout(25000)});
@@ -78,25 +92,37 @@ function dealAmenityDetail(label, detail) {
             const fresh=await fetch(CONFIG.dealsEndpoint,{cache:'no-store'});
             const updated=fresh.ok?resolveDeals(await fresh.json()).find(d=>String(d.id)===String(dealId)):null;
             if(!updated || !isPublicDeal(updated))return showError('Deze deal is niet beschikbaar','Bekijk onze andere aanbiedingen.');
-            deal=updated;
-            if(deal.price_is_current===false)availability={status:'unknown',available:false};
+            pendingDeal=updated;
+            if(pendingDeal.price_is_current===false)availability={status:'unknown',available:false};
           }catch{availability={status:'unknown',available:false};}
         }
-        deal.availability_status=availability.status;
-        deal.price_is_current=availability.available===true;
-        if(!deal.price_is_current) {
-          deal.booking_enabled=false;
-          setTimeout(()=>{if(!checkoutBusy)loadDeal();},60000);
+        pendingDeal.availability_status=availability.status;
+        pendingDeal.price_is_current=availability.available===true;
+        if(!pendingDeal.price_is_current) {
+          pendingDeal.booking_enabled=false;
+          dealRetry=setTimeout(loadDeal,15000);
         }
       }
-      gallery = getImages(deal);
-      renderDeal();
-      bindDealEvents();
-      initStayChoice();
+      if (checkoutBusy) { pendingDeal=previousDeal; dealRetry=setTimeout(loadDeal,15000); return; }
+      const snapshot = JSON.stringify(pendingDeal, (key,value) => /^(availability_checked_at|availability_valid_until|updated_at|last_synced_at)$/.test(key) ? undefined : value);
+      if (snapshot !== renderedDeal) {
+        deal = pendingDeal;
+        gallery = getImages(pendingDeal);
+        renderDeal();
+        bindDealEvents();
+        initStayChoice(stayCapability);
+        renderedDeal = snapshot;
+      }
     } catch (error) {
       console.error("SeasonDeals detail failed:", error);
-      showError("De deal kon niet worden geladen", "Controleer je internetverbinding of probeer het over een paar minuten opnieuw.");
-    }
+      pendingDeal = previousDeal;
+      if (renderedDeal && pendingDeal?.source === 'provider_sync' && !checkoutBusy && pendingDeal.price_is_current === true) {
+        pendingDeal={...deal,price_is_current:false,booking_enabled:false};
+        deal=pendingDeal;renderDeal();bindDealEvents();renderedDeal=null;
+      }
+      if (!previousDeal) showError("De deal kon niet worden geladen", "Controleer je internetverbinding. We proberen het automatisch opnieuw.");
+      dealRetry=setTimeout(loadDeal,15000);
+    } finally { dealLoading=false; }
   }
 
   function renderDeal(flexiblePolicy = null) {
@@ -125,7 +151,7 @@ function dealAmenityDetail(label, detail) {
     container.innerHTML = `<div class="detail-container">
       <nav class="detail-breadcrumbs" aria-label="Broodkruimel"><a href="${escapeAttribute(CONFIG.homePage)}">Home</a><span>›</span><a href="${escapeAttribute(CONFIG.homePage)}#deals">Deals</a><span>›</span><span>${escapeHtml(title)}</span></nav>
       ${renderGallery(title)}
-      <header class="detail-heading"><div><span class="detail-kicker">${escapeHtml(formatCategory(getCategory(deal)))}${location ? ` · ${escapeHtml(location)}` : ""}</span><h1>${escapeHtml(title)}</h1><div class="detail-subline"><strong>${escapeHtml(hotel)}</strong>${rating > 0 ? `<span class="detail-rating">★ ${escapeHtml(formatDecimal(rating))}${reviews > 0 ? ` · ${escapeHtml(formatNumber(reviews))} beoordelingen` : ""}</span>` : ""}${deal.star_rating > 0 ? `<span>${"★".repeat(Math.min(5, Math.round(deal.star_rating)))} hotel</span>` : ""}${flexiblePolicy ? '<span class="detail-stock">Kies je datums</span>' : deal.source === "provider_sync" ? `<span class="detail-stock">${checking ? "Wordt bijgewerkt" : "● Beschikbaar"}</span>` : remaining !== null ? `<span class="detail-stock${remaining <= 5 ? " is-low" : ""}">● ${remaining === 0 ? "Uitverkocht" : `Actuele voorraad: ${formatNumber(remaining)}`}</span>` : ""}</div></div><div class="detail-heading-actions"><button class="detail-icon-button" id="share-deal" type="button" aria-label="Deal delen">↗</button><button class="detail-icon-button" id="save-deal" type="button" aria-label="Deal opslaan">♡</button></div></header>
+      <header class="detail-heading"><div><span class="detail-kicker">${escapeHtml(formatCategory(getCategory(deal)))}${location ? ` · ${escapeHtml(location)}` : ""}</span><h1>${escapeHtml(title)}</h1><div class="detail-subline"><strong>${escapeHtml(hotel)}</strong>${rating > 0 ? `<span class="detail-rating">★ ${escapeHtml(formatDecimal(rating))}${reviews > 0 ? ` · ${escapeHtml(formatNumber(reviews))} beoordelingen` : ""}</span>` : ""}${deal.star_rating > 0 ? `<span>${"★".repeat(Math.min(5, Math.round(deal.star_rating)))} hotel</span>` : ""}${flexiblePolicy ? '<span class="detail-stock">Kies je datums</span>' : deal.source === "provider_sync" ? `<span class="detail-stock">${checking ? "Beschikbaarheid nog niet bevestigd" : "● Beschikbaar"}</span>` : remaining !== null ? `<span class="detail-stock${remaining <= 5 ? " is-low" : ""}">● ${remaining === 0 ? "Uitverkocht" : `Actuele voorraad: ${formatNumber(remaining)}`}</span>` : ""}</div></div><div class="detail-heading-actions"><button class="detail-icon-button" id="share-deal" type="button" aria-label="Deal delen">↗</button><button class="detail-icon-button" id="save-deal" type="button" aria-label="Deal opslaan">♡</button></div></header>
       <div class="detail-layout"><article class="detail-content">
         <section><span class="detail-section-label">Over deze deal</span><h2>Een bijzonder moment voor een mooie prijs.</h2><p>${escapeHtml(mainDescription)}</p>${longDescription && longDescription !== mainDescription ? `<p class="detail-description-long">${formatText(longDescription)}</p>` : ""}</section>
         ${amenities.length ? `<section><span class="detail-section-label">Dit is inbegrepen</span><h2>Jouw verblijf</h2><div class="amenities-grid">${amenities.map(renderAmenity).join("")}</div></section>` : ""}

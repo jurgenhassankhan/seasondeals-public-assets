@@ -20,6 +20,9 @@
   const DEALS_PER_PAGE = 8;
   let currentPage = 1;
   let pagination;
+  let dealsLoading = false;
+  let dealsTimer;
+  let dealsSnapshot = null;
 
   initTechnicalSeo();
   bindNavigation();
@@ -27,7 +30,9 @@
   if (grid) {
     bindDealControls();
     loadDeals();
-    setInterval(()=>{if(!document.hidden)loadDeals();},60000);
+    document.addEventListener('visibilitychange',()=>{
+      if (!document.hidden) loadDeals();
+    });
   }
 
   function initTechnicalSeo() {
@@ -222,18 +227,37 @@
   }
 
   async function loadDeals() {
+    if (dealsLoading) return;
+    clearTimeout(dealsTimer);
+    if (document.hidden) return;
+    dealsLoading = true;
     try {
-      const response = await fetch(CONFIG.dealsEndpoint, { method: "GET", mode: "cors", credentials: "omit", headers: { Accept: "application/json" } });
+      const response = await fetch(CONFIG.dealsEndpoint, { method: "GET", mode: "cors", credentials: "omit", cache: "no-store", signal: AbortSignal.timeout(15000), headers: { Accept: "application/json" } });
       if (!response.ok) throw new Error(`Xano gaf status ${response.status}.`);
       const data = await response.json();
       deals = resolveDeals(data).filter(isPublicDeal);
-      updateDealStructuredData(deals);
-      renderDeals();
+      // Timestamps alone must not rebuild cards or steal keyboard focus.
+      const snapshot = JSON.stringify(deals, (key,value) => /^(availability_checked_at|availability_valid_until|updated_at|last_synced_at)$/.test(key) ? undefined : value);
+      if (snapshot !== dealsSnapshot) {
+        updateDealStructuredData(deals);
+        renderDeals();
+        dealsSnapshot = snapshot;
+      }
     } catch (error) {
       console.error("SeasonDeals public deals failed:", error);
-      grid.innerHTML = "";
-      pagination.hidden = true;
-      setMessage("De deals konden nu niet worden geladen. Probeer het over een paar minuten opnieuw.", "error");
+      if (dealsSnapshot === null) {
+        grid.innerHTML = "";
+        pagination.hidden = true;
+        setMessage("De deals konden niet worden geladen. We proberen het automatisch opnieuw.", "error");
+      } else if (deals.some(d => d.source === 'provider_sync' && d.price_is_current === true)) {
+        deals = deals.map(d => d.source === 'provider_sync' ? {...d,price_is_current:false,booking_enabled:false} : d);
+        dealsSnapshot = '';
+        updateDealStructuredData(deals);
+        renderDeals();
+      }
+    } finally {
+      dealsLoading = false;
+      dealsTimer = setTimeout(loadDeals, 15000);
     }
   }
 
@@ -329,7 +353,7 @@
       <div class="deal-image">
         ${image ? `<img src="${escapeAttribute(image)}" alt="${escapeAttribute(title)}" loading="lazy">` : `<div class="deal-image-placeholder"><span>SeasonDeals</span><small>Hot offers, cool prices</small></div>`}
         ${discount ? `<span class="discount">-${discount}%</span>` : ""}
-        ${flexible ? '<span class="stock-badge">Wordt gecontroleerd</span>' : deal.source === "provider_sync" ? `<span class="stock-badge">${checking ? "Wordt bijgewerkt" : "Beschikbaar"}</span>` : remaining !== null ? `<span class="stock-badge${remaining <= 5 ? " is-low" : ""}">${remaining === 0 ? "Uitverkocht" : `Nog ${formatNumber(remaining)} beschikbaar`}</span>` : ""}
+        ${flexible ? '<span class="stock-badge">Wordt gecontroleerd</span>' : deal.source === "provider_sync" ? `<span class="stock-badge">${checking ? "Bekijk beschikbaarheid" : "Beschikbaar"}</span>` : remaining !== null ? `<span class="stock-badge${remaining <= 5 ? " is-low" : ""}">${remaining === 0 ? "Uitverkocht" : `Nog ${formatNumber(remaining)} beschikbaar`}</span>` : ""}
       </div>
       <div class="deal-card-body">
         <span class="deal-type">${escapeHtml(formatCategory(category))}${city ? ` · ${escapeHtml(city)}` : ""}</span>
