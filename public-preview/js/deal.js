@@ -290,12 +290,46 @@ function dealAmenityDetail(label, detail) {
 
   function reviewHotelNotes(raw,offer) {
     return new Promise(resolve => {
+      const plain=value=>{const decoder=document.createElement('textarea');decoder.innerHTML=String(value||'').replace(/<(?:br\s*\/?|\/p|\/div|\/li)>/gi,'\n').replace(/<[^>]*>/g,'');return decoder.value.trim();};
+      const normalize=value=>plain(value).replace(/\s+/g,' ').trim();
+      // Compare against the page the customer actually read, not an older supplier label.
+      const displayed={price:Number(deal.deal_price||deal.price),room:deal.room,board:deal.board,cancellation:deal.cancellation_policy};
+      if(offer){
+        const pageText=normalize(container.querySelector('.detail-content')?.textContent);
+        const changes=offer.changes.map(change=>{
+          const before=displayed[change.field]??change.before;
+          if(change.field==='hotel_notes'){
+            const oldLines=plain(change.before).split('\n').map(normalize).filter(Boolean);
+            const newLines=plain(change.after).split('\n').map(normalize).filter(Boolean);
+            // Optional, unselected services do not change this fixed room booking.
+            // Match complete known clauses only; unknown obligations remain visible.
+            const optionalInfo=value=>{
+              let s=value;
+              if(offer.terms.board_type==='RO')s=s.replace(/-?\s*Breakfast can be booked additionally and is offered for €\s*[\d.,]+ per person under the following conditions:\s*Up to [\d.]+ years: free of charge\s*Up to [\d.]+ years: [\d.]+%\s*From [\d.]+ years onwards: full price/gi,'');
+              if((deal.facility_items||[]).some(f=>/park/i.test(f.label)&&/tegen betaling/i.test(f.detail)))s=s.replace(/-?\s*Parking spaces are available for €\s*[\d.,]+ per day\.\s*(?:=>\s*Parking garage is available\.)?/gi,'');
+              // The fixed supplier checkout books adults only; no pets/extra beds are selected.
+              if(deal.source==='provider_sync')s=s.replace(/-?\s*Pets are allowed\.\s*An extra charge of €\s*[\d.,]+ per pet\/day is required\./gi,'').replace(/-?\s*Children up to [\d.]+ years: free of charge in (?:baby cot or )?parents[’'] bed/gi,'').replace(/-?\s*Extra bed \(except baby cot\): €\s*[\d.,]+/gi,'').replace(/-?\s*From [\d.]+ years onwards: extra bed required \(if not included in the room category\)/gi,'');
+              s=s.replace(/Please note that the hotel accepts bookings exclusively from demand partners located in the following countries: [A-Za-z ,]+\.\s*Thank you for your understanding\./g,'');
+              // A full-charge early departure reminder repeats the existing policy only
+              // when a 100% cancellation penalty already starts on/before check-in.
+              const full=String(displayed.cancellation||'').match(/Vanaf (\d{4}-\d{2}-\d{2})[^.]*?€ 0,00 terugbetaling; € ([\d.,]+) annuleringskosten/);
+              if(full&&full[1]<=String(deal.travel_period_start||'').slice(0,10)&&Number(full[2].replace(/\./g,'').replace(',','.'))===displayed.price)s=s.replace(/Early check out will attract full cancellation charge unless otherwise specified/gi,'');
+              return s.trim();
+            };
+            const added=optionalInfo(newLines.filter(line=>!oldLines.includes(line)&&!pageText.includes(line)).join('\n'));
+            const removed=oldLines.filter(line=>!newLines.includes(line));
+            return {...change,before:removed.join('\n'),after:added};
+          }
+          return {...change,before};
+        }).filter(change=>typeof change.before==='number'?change.before!==change.after:normalize(Array.isArray(change.before)?JSON.stringify(change.before):change.before)!==normalize(Array.isArray(change.after)?JSON.stringify(change.after):change.after));
+        offer={...offer,changes};
+        if(!changes.length){resolve(true);return;}
+      }
       const dialog=document.createElement('dialog');
       dialog.setAttribute('aria-labelledby','sd-hotel-notes-title');
-      dialog.style.cssText='width:min(440px,calc(100vw - 32px));max-height:85vh;padding:22px;border:1px solid #ddd7ce;border-radius:16px;color:#042821;background:#fffdf8;box-sizing:border-box';
+      dialog.style.cssText='width:min(380px,calc(100vw - 32px));max-height:60vh;padding:18px;border:1px solid #ddd7ce;border-radius:14px;color:#042821;background:#fffdf8;box-sizing:border-box';
       const title=document.createElement('h2');title.id='sd-hotel-notes-title';title.textContent='Dit is gewijzigd';title.style.cssText='font-size:22px;line-height:1.25;margin:0 0 14px';
       const notes=document.createElement('div');notes.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;line-height:1.5;max-height:30vh;overflow:auto';
-      const plain=value=>{const decoder=document.createElement('textarea');decoder.innerHTML=String(value||'').replace(/<(?:br\s*\/?|\/p|\/div|\/li)>/gi,'\n').replace(/<[^>]*>/g,'');return decoder.value.trim();};
       const paragraph=(label,value)=>{const row=document.createElement('p'),strong=document.createElement('strong');strong.textContent=label;row.append(strong,document.createTextNode(' '+plain(value)));notes.append(row);};
       if(offer){
         const sentences=value=>plain(value).split(/\n+|(?<=[.!?])\s+(?=[A-ZÀ-ÖØ-Þ])/u).map(s=>s.trim()).filter(Boolean);
