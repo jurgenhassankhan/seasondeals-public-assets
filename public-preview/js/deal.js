@@ -230,11 +230,30 @@ function dealAmenityDetail(label, detail) {
       // The backend verifies provider=nuitee, production approval, occupancy and price.
       // Never send a supplier deal through the ordinary partner checkout.
       const request = supplier ? supplierRequest(deal.id, checkin, checkout, guests) : { deal_id: deal.id, checkin, checkout, guests };
-      const response = await fetch(supplier ? CONFIG.supplierCheckoutEndpoint : CONFIG.checkoutEndpoint, { method: "POST", mode: "cors", credentials: "omit", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(request) });
+      let response = await fetch(supplier ? CONFIG.supplierCheckoutEndpoint : CONFIG.checkoutEndpoint, { method: "POST", mode: "cors", credentials: "omit", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(request) });
       failureStatus = response.status;
       failureCode = response.ok ? "CHECKOUT_RESPONSE" : "CHECKOUT_HTTP";
-      const responseText = await response.text();
+      let responseText = await response.text();
       let data = {}; try { data = responseText ? JSON.parse(responseText) : {}; } catch { data = { message: responseText }; }
+      if (supplier && response.ok && data?.status === "hotel_notes_review" && data.checkout_created === false) {
+        failureCode = null;
+        if (typeof data.hotel_notes !== 'string' || data.hotel_notes.length > 12000 || typeof data.hotel_notes_ack !== 'string' || data.hotel_notes_ack.length > 100000) throw checkoutCustomerError('De aanvullende hotelinformatie kon niet worden geladen.');
+        const approved = await reviewHotelNotes(data.hotel_notes);
+        if (!approved) {
+          showBookingMessage('Je hebt nog niet geboekt of betaald.', 'info');
+          checkoutBusy=false;button.disabled=false;button.innerHTML='Bekijk beschikbaarheid & boek <span>→</span>';
+          return;
+        }
+        failureCode = 'CHECKOUT_NETWORK';
+        response = await fetch(CONFIG.supplierCheckoutEndpoint, {method:'POST',mode:'cors',credentials:'omit',headers:{Accept:'application/json','Content-Type':'application/json'},body:JSON.stringify({...request,hotel_notes_ack:data.hotel_notes_ack})});
+        failureStatus=response.status;failureCode=response.ok?'CHECKOUT_RESPONSE':'CHECKOUT_HTTP';
+        responseText=await response.text();
+        try {data=responseText?JSON.parse(responseText):{};} catch {data={};}
+        if (response.ok && data?.status === 'hotel_notes_review' && data.checkout_created === false) {
+          failureCode=null;
+          throw checkoutCustomerError('De hotelinformatie is opnieuw gewijzigd. Bekijk de actuele informatie door opnieuw op boeken te klikken.');
+        }
+      }
       if (supplier && !response.ok && response.status === 403 && data?.message === "PRODUCTION_NOT_RELEASED") {
         failureCode = null;
         // This precise entry-gate rejection happens before any order or Stripe write.
@@ -263,6 +282,28 @@ function dealAmenityDetail(label, detail) {
       checkoutBusy = false;
       button.disabled = false; button.innerHTML = "Bekijk beschikbaarheid & boek <span>→</span>";
     }
+  }
+
+  function reviewHotelNotes(raw) {
+    return new Promise(resolve => {
+      const dialog=document.createElement('dialog');
+      dialog.setAttribute('aria-labelledby','sd-hotel-notes-title');
+      dialog.style.cssText='width:min(620px,calc(100vw - 40px));max-height:85vh;padding:28px;border:1px solid #ddd7ce;border-radius:18px;color:#042821;background:#fffdf8;box-sizing:border-box';
+      const title=document.createElement('h2');title.id='sd-hotel-notes-title';title.textContent='Aanvullende hotelinformatie';
+      const intro=document.createElement('p');intro.textContent='Het hotel heeft onderstaande informatie toegevoegd. Lees deze vóór je doorgaat naar de betaalpagina. Je boekt en betaalt pas bij de volgende stap.';
+      const notes=document.createElement('div');notes.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6;margin:20px 0;max-height:45vh;overflow:auto';
+      // Strip tags before decoding entities; the result is inserted only as text.
+      const decoder=document.createElement('textarea');
+      decoder.innerHTML=raw.replace(/<(?:br\s*\/?|\/p|\/div|\/li)>/gi,'\n').replace(/<[^>]*>/g,'');
+      notes.textContent=decoder.value.trim();
+      const actions=document.createElement('div');actions.style.cssText='display:flex;gap:12px;flex-wrap:wrap;margin-top:20px';
+      const cancel=document.createElement('button');cancel.type='button';cancel.textContent='Terug naar de deal';cancel.className='button';
+      const next=document.createElement('button');next.type='button';next.textContent='Verder naar betalen';next.className='button button-primary';
+      const finish=accepted=>{dialog.close();dialog.remove();resolve(accepted);};
+      cancel.addEventListener('click',()=>finish(false));next.addEventListener('click',()=>finish(true));
+      dialog.addEventListener('cancel',event=>{event.preventDefault();finish(false);});
+      actions.append(cancel,next);dialog.append(title,intro,notes,actions);document.body.append(dialog);dialog.showModal();cancel.focus();
+    });
   }
 
     // Best-effort technical telemetry only: no guest details, URLs, tokens or raw errors.
@@ -451,4 +492,3 @@ function checkoutDisplayedTerms(deal) {
   function showToast(value){const toast=document.getElementById("preview-toast");if(!toast)return;toast.textContent=value;toast.classList.add("is-visible");clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>toast.classList.remove("is-visible"),3500);}
   function showError(title,message){container.innerHTML=`<section class="detail-error"><span>!</span><h1>${escapeHtml(title)}</h1><p>${escapeHtml(message)}</p><a class="button button-primary" href="${escapeAttribute(CONFIG.homePage)}#deals">Terug naar alle deals <span>→</span></a></section>`;}
 })();
-
