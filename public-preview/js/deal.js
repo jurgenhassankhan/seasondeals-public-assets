@@ -313,7 +313,7 @@ function dealAmenityDetail(label, detail) {
               // A full-charge early departure reminder repeats the existing policy only
               // when a 100% cancellation penalty already starts on/before check-in.
               const full=String(displayed.cancellation||'').match(/Vanaf (\d{4}-\d{2}-\d{2})[^.]*?€ 0,00 terugbetaling; € ([\d.,]+) annuleringskosten/);
-              if(full&&full[1]<=String(deal.travel_period_start||'').slice(0,10)&&Number(full[2].replace(/\./g,'').replace(',','.'))===displayed.price)s=s.replace(/Early check out will attract full cancellation charge unless otherwise specified/gi,'');
+              if(full&&full[1]<=(document.getElementById('sd-checkin')?.value||'')&&Number(full[2].replace(/\./g,'').replace(',','.'))===displayed.price)s=s.replace(/Early check out will attract full cancellation charge unless otherwise specified/gi,'');
               return s.trim();
             };
             const added=optionalInfo(newLines.filter(line=>!oldLines.includes(line)&&!pageText.includes(line)).join('\n'));
