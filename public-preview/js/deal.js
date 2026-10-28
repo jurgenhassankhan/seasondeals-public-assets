@@ -330,7 +330,35 @@ function dealAmenityDetail(label, detail) {
       dialog.style.cssText='width:min(380px,calc(100vw - 32px));max-height:60vh;padding:18px;border:1px solid #ddd7ce;border-radius:14px;color:#042821;background:#fffdf8;box-sizing:border-box';
       const title=document.createElement('h2');title.id='sd-hotel-notes-title';title.textContent='Dit is gewijzigd';title.style.cssText='font-size:22px;line-height:1.25;margin:0 0 14px';
       const notes=document.createElement('div');notes.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;line-height:1.5;max-height:30vh;overflow:auto';
-      const paragraph=(label,value)=>{const row=document.createElement('p'),strong=document.createElement('strong');strong.textContent=label;row.append(strong,document.createTextNode(' '+plain(value)));notes.append(row);};
+      const dutch=value=>plain(value)
+        .replace(/Early check out will attract full cancellation charge unless otherwise specified/gi,'Bij eerder vertrek worden de volledige annuleringskosten berekend, tenzij anders vermeld.')
+        .replace(/Breakfast can be booked additionally and is offered for/gi,'Ontbijt is optioneel bij te boeken voor')
+        .replace(/per person under the following conditions:/gi,'per persoon, onder deze voorwaarden:')
+        .replace(/Parking spaces are available for/gi,'Parkeren is mogelijk voor')
+        .replace(/Parking garage is available/gi,'Er is een parkeergarage')
+        .replace(/Pets are not allowed/gi,'Huisdieren zijn niet toegestaan')
+        .replace(/Pets are allowed/gi,'Huisdieren zijn toegestaan')
+        .replace(/An extra charge of/gi,'Er geldt een toeslag van')
+        .replace(/per pet\/day is required/gi,'per huisdier per dag')
+        .replace(/Children up to/gi,'Kinderen tot en met')
+        .replace(/Up to ([\d.]+) years:/gi,'Tot en met $1 jaar:')
+        .replace(/From ([\d.]+) years onwards:/gi,'Vanaf $1 jaar:')
+        .replace(/years: free of charge in baby cot or parents[’'] bed/gi,'jaar: gratis in een babybedje of in het bed van de ouders')
+        .replace(/years: free of charge in parents[’'] bed/gi,'jaar: gratis in het bed van de ouders')
+        .replace(/Extra bed \(except baby cot\)/gi,'Extra bed (behalve een babybedje)')
+        .replace(/extra bed required \(if not included in the room category\)/gi,'een extra bed is verplicht als dit niet bij het kamertype is inbegrepen')
+        .replace(/Mandatory resort fee/gi,'Verplichte resorttoeslag')
+        .replace(/City tax|Tourist tax/gi,'Toeristenbelasting')
+        .replace(/Security deposit/gi,'Borg')
+        .replace(/Non-refundable/gi,'Niet restitueerbaar')
+        .replace(/Free cancellation/gi,'Gratis annuleren')
+        .replace(/subject to availability/gi,'afhankelijk van beschikbaarheid')
+        .replace(/on request/gi,'op aanvraag')
+        .replace(/free of charge/gi,'gratis')
+        .replace(/full price/gi,'volledig tarief')
+        .replace(/per person/gi,'per persoon').replace(/per stay/gi,'per verblijf')
+        .replace(/per night/gi,'per nacht').replace(/per day/gi,'per dag');
+      const paragraph=(label,value)=>{const row=document.createElement('p'),strong=document.createElement('strong');strong.textContent=label;row.append(strong,document.createTextNode(' '+dutch(value)));notes.append(row);};
       if(offer){
         const sentences=value=>plain(value).split(/\n+|(?<=[.!?])\s+(?=[A-ZÀ-ÖØ-Þ])/u).map(s=>s.trim()).filter(Boolean);
         for(const change of offer.changes){
@@ -344,7 +372,7 @@ function dealAmenityDetail(label, detail) {
             if(added.length)paragraph(change.label+(removed.length?' — nu:':':'),added.join('\n'));
           }
         }
-      }else notes.textContent=plain(raw);
+      }else notes.textContent=dutch(raw);
       const actions=document.createElement('div');actions.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin-top:16px';
       const cancel=document.createElement('button');cancel.type='button';cancel.textContent='Terug';cancel.className='button';
       const next=document.createElement('button');next.type='button';next.textContent='Akkoord, naar betalen';next.className='button button-primary';
