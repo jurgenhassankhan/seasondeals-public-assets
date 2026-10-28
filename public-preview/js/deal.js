@@ -224,37 +224,60 @@ function dealAmenityDetail(label, detail) {
     checkoutBusy = true;
     button.disabled = true; button.innerHTML = "Je wordt doorgestuurd…";
     showBookingMessage("Je wordt doorgestuurd naar de beveiligde betaalpagina…", "info");
+    let failureCode = "CHECKOUT_NETWORK", failureStatus = 0;
     try {
       const supplier = deal.source === "provider_sync";
       // The backend verifies provider=nuitee, production approval, occupancy and price.
       // Never send a supplier deal through the ordinary partner checkout.
       const request = supplier ? supplierRequest(deal.id, checkin, checkout, guests) : { deal_id: deal.id, checkin, checkout, guests };
       const response = await fetch(supplier ? CONFIG.supplierCheckoutEndpoint : CONFIG.checkoutEndpoint, { method: "POST", mode: "cors", credentials: "omit", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(request) });
+      failureStatus = response.status;
+      failureCode = response.ok ? "CHECKOUT_RESPONSE" : "CHECKOUT_HTTP";
       const responseText = await response.text();
       let data = {}; try { data = responseText ? JSON.parse(responseText) : {}; } catch { data = { message: responseText }; }
       if (supplier && !response.ok && response.status === 403 && data?.message === "PRODUCTION_NOT_RELEASED") {
+        failureCode = null;
         // This precise entry-gate rejection happens before any order or Stripe write.
         try { sessionStorage.removeItem(supplierStorageKey(deal.id)); } catch (_) {}
         throw checkoutCustomerError("Deze hoteldeal is nog niet beschikbaar om te boeken.");
       }
       if (supplier && response.ok && data?.status === "offer_changed" && data.checkout_created === false) {
+        failureCode = null;
         try { sessionStorage.removeItem(supplierStorageKey(deal.id)); } catch (_) {}
         throw checkoutCustomerError("De prijs of voorwaarden zijn gewijzigd. Laad de deal opnieuw en bekijk het actuele aanbod voordat je boekt.");
       }
       if (!response.ok) throw checkoutCustomerError("Boeken lukt op dit moment niet. Probeer het later opnieuw of neem contact op met SeasonDeals.");
       const checkoutUrl = data?.checkout_url || data?.url || data?.session_url || data?.session?.url || data?.api1?.response?.url || data?.api1?.response?.result?.url;
-      if (supplier && (!validSupplierCheckout(data, checkoutUrl) || data.selling_price !== Number(deal.deal_price || deal.price))) throw checkoutCustomerError("De betaalpagina kon niet veilig worden bevestigd. Probeer dezelfde boeking opnieuw of neem contact op met SeasonDeals.");
+      failureCode = "CHECKOUT_LINK";
+      if (supplier && !validSupplierCheckout(data, checkoutUrl)) throw checkoutCustomerError("De betaalpagina kon niet veilig worden bevestigd. Probeer dezelfde boeking opnieuw of neem contact op met SeasonDeals.");
+      if (supplier && data.selling_price !== Number(deal.deal_price || deal.price)) {
+        failureCode = "CHECKOUT_PRICE";
+        throw checkoutCustomerError("De betaalpagina kon niet veilig worden bevestigd. Probeer dezelfde boeking opnieuw of neem contact op met SeasonDeals.");
+      }
       if (!checkoutUrl) throw checkoutCustomerError("De betaalpagina kon niet worden geopend. Probeer het opnieuw.");
       window.location.href = checkoutUrl;
     } catch (error) {
-      console.error("SeasonDeals checkout failed:", error);
+      reportCheckoutError(failureCode, failureStatus);
+      console.error("SeasonDeals checkout failed:", failureCode || "offer changed");
       showBookingMessage(error.customerMessage || "Boeken lukt op dit moment niet. Probeer het later opnieuw of neem contact op met SeasonDeals.", "error");
       checkoutBusy = false;
       button.disabled = false; button.innerHTML = "Bekijk beschikbaarheid & boek <span>→</span>";
     }
   }
 
-  // A back/forward-cache restore preserves JS state, including the redirect lock.
+    // Best-effort technical telemetry only: no guest details, URLs, tokens or raw errors.
+  function reportCheckoutError(code, httpStatus) {
+    if (!code || !Number.isInteger(Number(deal?.id))) return;
+    try {
+      const endpoint = CONFIG.dealsEndpoint.replace(/\/deals$/, "/checkout-error");
+      void fetch(endpoint, {method:"POST",mode:"cors",credentials:"omit",keepalive:true,
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({deal_id:Number(deal.id),code,http_status:httpStatus||0}),
+        signal:AbortSignal.timeout(3000)}).catch(()=>{});
+    } catch (_) {}
+  }
+
+// A back/forward-cache restore preserves JS state, including the redirect lock.
   // Restore the controls without replacing the saved request key or creating an order.
   window.addEventListener?.("pageshow", event => {
     if (!event.persisted) return;

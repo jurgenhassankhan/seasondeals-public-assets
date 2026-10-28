@@ -64,6 +64,7 @@
       ["dashboard", "index.html", "Dashboard", dashboardIcon()],
       ["hotels", "hotels.html", "Partners", hotelsIcon()],
       ["suppliers", "suppliers.html", "Leveranciers", integrationsIcon()],
+      ["incidents", "checkout-incidents.html", "Foutmeldingen", integrationsIcon()],
       ["orders", "orders.html", "Omzet & orders", ordersIcon()],
       ["deals", "deals.html", "Deals", dealsIcon()],
       ["integrations", "integrations.html", "Integratiebeheer", integrationsIcon()]
