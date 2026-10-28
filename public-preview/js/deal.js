@@ -235,20 +235,20 @@ function dealAmenityDetail(label, detail) {
       if (supplier && !response.ok && response.status === 403 && data?.message === "PRODUCTION_NOT_RELEASED") {
         // This precise entry-gate rejection happens before any order or Stripe write.
         try { sessionStorage.removeItem(supplierStorageKey(deal.id)); } catch (_) {}
-        throw new Error("Deze hoteldeal is nog niet beschikbaar om te boeken.");
+        throw checkoutCustomerError("Deze hoteldeal is nog niet beschikbaar om te boeken.");
       }
       if (supplier && response.ok && data?.status === "offer_changed" && data.checkout_created === false) {
         try { sessionStorage.removeItem(supplierStorageKey(deal.id)); } catch (_) {}
-        throw new Error("De prijs of voorwaarden zijn gewijzigd. Laad de deal opnieuw en bekijk het actuele aanbod voordat je boekt.");
+        throw checkoutCustomerError("De prijs of voorwaarden zijn gewijzigd. Laad de deal opnieuw en bekijk het actuele aanbod voordat je boekt.");
       }
-      if (!response.ok) throw new Error(data?.message || data?.error || data?.detail || `Boeken is niet gelukt (${response.status}).`);
+      if (!response.ok) throw checkoutCustomerError("Boeken lukt op dit moment niet. Probeer het later opnieuw of neem contact op met SeasonDeals.");
       const checkoutUrl = data?.checkout_url || data?.url || data?.session_url || data?.session?.url || data?.api1?.response?.url || data?.api1?.response?.result?.url;
-      if (supplier && (!validSupplierCheckout(data, checkoutUrl) || data.selling_price !== Number(deal.deal_price || deal.price))) throw new Error("De betaalpagina kon niet veilig worden bevestigd. Probeer dezelfde boeking opnieuw of neem contact op met SeasonDeals.");
-      if (!checkoutUrl) throw new Error("De betaalpagina kon niet worden geopend. Probeer het opnieuw.");
+      if (supplier && (!validSupplierCheckout(data, checkoutUrl) || data.selling_price !== Number(deal.deal_price || deal.price))) throw checkoutCustomerError("De betaalpagina kon niet veilig worden bevestigd. Probeer dezelfde boeking opnieuw of neem contact op met SeasonDeals.");
+      if (!checkoutUrl) throw checkoutCustomerError("De betaalpagina kon niet worden geopend. Probeer het opnieuw.");
       window.location.href = checkoutUrl;
     } catch (error) {
       console.error("SeasonDeals checkout failed:", error);
-      showBookingMessage(error.message || "Boeken is nu niet mogelijk. Probeer het opnieuw.", "error");
+      showBookingMessage(error.customerMessage || "Boeken lukt op dit moment niet. Probeer het later opnieuw of neem contact op met SeasonDeals.", "error");
       checkoutBusy = false;
       button.disabled = false; button.innerHTML = "Bekijk beschikbaarheid & boek <span>→</span>";
     }
@@ -340,23 +340,23 @@ function checkoutDisplayedTerms(deal) {
 
   function supplierRequest(id, checkin, checkout, guests) {
     const dealId = Number(id);
-    if (!Number.isSafeInteger(dealId) || dealId <= 0 || !Number.isInteger(guests) || guests < 1 || guests > 6) throw new Error("Deze hoteldeal ondersteunt dit aantal gasten niet.");
+    if (!Number.isSafeInteger(dealId) || dealId <= 0 || !Number.isInteger(guests) || guests < 1 || guests > 6) throw checkoutCustomerError("Deze hoteldeal ondersteunt dit aantal gasten niet.");
     const request = { deal_id: dealId, checkin, checkout, guest_count: guests, expected_terms: checkoutDisplayedTerms(deal) };
     // Reuse the same key after reloading changed terms. The server checks those
     // terms against an existing intent; it can never replace a previously created order.
     const fingerprint = JSON.stringify({deal_id: dealId, checkin, checkout, guest_count: guests}), key = supplierStorageKey(id);
     let saved;
     try { saved = JSON.parse(sessionStorage.getItem(key) || "null"); }
-    catch (_) { throw new Error("Je betaalpoging kan niet veilig worden bewaard. Neem contact op met SeasonDeals."); }
+    catch (_) { throw checkoutCustomerError("Je betaalpoging kan niet veilig worden bewaard. Neem contact op met SeasonDeals."); }
     if (saved) {
-      if (!/^[a-f0-9]{64}$/.test(saved.request_key || "") || !Number.isFinite(saved.created_at) || Date.now() < saved.created_at || Date.now() - saved.created_at >= 82800000) throw new Error("Een eerdere betaalpoging moet eerst worden gecontroleerd. Neem contact op met SeasonDeals.");
-      if (saved.fingerprint !== fingerprint) throw new Error("Er staat al een betaalpoging voor andere datums of gasten klaar. Gebruik dezelfde gegevens of neem contact op met SeasonDeals.");
+      if (!/^[a-f0-9]{64}$/.test(saved.request_key || "") || !Number.isFinite(saved.created_at) || Date.now() < saved.created_at || Date.now() - saved.created_at >= 82800000) throw checkoutCustomerError("Een eerdere betaalpoging moet eerst worden gecontroleerd. Neem contact op met SeasonDeals.");
+      if (saved.fingerprint !== fingerprint) throw checkoutCustomerError("Er staat al een betaalpoging voor andere datums of gasten klaar. Gebruik dezelfde gegevens of neem contact op met SeasonDeals.");
     } else {
       const bytes = new Uint8Array(32);
       window.crypto.getRandomValues(bytes);
       saved = { request_key: Array.from(bytes, b => b.toString(16).padStart(2, "0")).join(""), fingerprint, created_at: Date.now() };
       try { sessionStorage.setItem(key, JSON.stringify(saved)); }
-      catch (_) { throw new Error("Je betaalpoging kan niet veilig worden bewaard. Neem contact op met SeasonDeals."); }
+      catch (_) { throw checkoutCustomerError("Je betaalpoging kan niet veilig worden bewaard. Neem contact op met SeasonDeals."); }
     }
     return { ...request, request_key: saved.request_key };
   }
@@ -418,6 +418,12 @@ function checkoutDisplayedTerms(deal) {
   function displayCity(value) { const city = text(value, "").trim(); return /^the hague$/i.test(city) ? "Den Haag" : city; }
   function escapeHtml(value){return String(value??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");}
   function escapeAttribute(value){return escapeHtml(value).replace(/`/g,"&#096;");}
+  function checkoutCustomerError(message) {
+    const error = new Error(message);
+    error.customerMessage = message;
+    return error;
+  }
+
   function showBookingMessage(value,type){const el=document.getElementById("booking-message");if(!el)return;el.textContent=value;el.className=`booking-message is-visible is-${type}`;}
   function showToast(value){const toast=document.getElementById("preview-toast");if(!toast)return;toast.textContent=value;toast.classList.add("is-visible");clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>toast.classList.remove("is-visible"),3500);}
   function showError(title,message){container.innerHTML=`<section class="detail-error"><span>!</span><h1>${escapeHtml(title)}</h1><p>${escapeHtml(message)}</p><a class="button button-primary" href="${escapeAttribute(CONFIG.homePage)}#deals">Terug naar alle deals <span>→</span></a></section>`;}
