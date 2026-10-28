@@ -225,6 +225,7 @@ function dealAmenityDetail(label, detail) {
     button.disabled = true; button.innerHTML = "Je wordt doorgestuurd…";
     showBookingMessage("Je wordt doorgestuurd naar de beveiligde betaalpagina…", "info");
     let failureCode = "CHECKOUT_NETWORK", failureStatus = 0;
+    let acceptedCheckoutPrice=Number(deal.deal_price||deal.price);
     try {
       const supplier = deal.source === "provider_sync";
       // The backend verifies provider=nuitee, production approval, occupancy and price.
@@ -237,13 +238,16 @@ function dealAmenityDetail(label, detail) {
       let data = {}; try { data = responseText ? JSON.parse(responseText) : {}; } catch { data = { message: responseText }; }
       if (supplier && response.ok && data?.status === "hotel_notes_review" && data.checkout_created === false) {
         failureCode = null;
-        if (typeof data.hotel_notes !== 'string' || data.hotel_notes.length > 12000 || typeof data.hotel_notes_ack !== 'string' || data.hotel_notes_ack.length > 100000) throw checkoutCustomerError('De aanvullende hotelinformatie kon niet worden geladen.');
-        const approved = await reviewHotelNotes(data.hotel_notes);
+        if (typeof data.hotel_notes !== 'string' || data.hotel_notes.length > 70000 || typeof data.hotel_notes_ack !== 'string' || data.hotel_notes_ack.length > 150000) throw checkoutCustomerError('De aanvullende hotelinformatie kon niet worden geladen.');
+        const offer=data.offer_review;
+        if (offer && (!offer.terms || offer.terms.deal_id!==Number(deal.id) || offer.terms.currency!=='EUR' || !Number.isFinite(offer.terms.price) || offer.terms.price<=0 || !Array.isArray(offer.changes) || !Array.isArray(offer.terms.local_fees))) throw checkoutCustomerError('De actuele voorwaarden konden niet worden gecontroleerd.');
+        const approved = await reviewHotelNotes(data.hotel_notes,offer);
         if (!approved) {
           showBookingMessage('Je hebt nog niet geboekt of betaald.', 'info');
           checkoutBusy=false;button.disabled=false;button.innerHTML='Bekijk beschikbaarheid & boek <span>→</span>';
           return;
         }
+        if(offer) acceptedCheckoutPrice=offer.terms.price;
         failureCode = 'CHECKOUT_NETWORK';
         response = await fetch(CONFIG.supplierCheckoutEndpoint, {method:'POST',mode:'cors',credentials:'omit',headers:{Accept:'application/json','Content-Type':'application/json'},body:JSON.stringify({...request,hotel_notes_ack:data.hotel_notes_ack})});
         failureStatus=response.status;failureCode=response.ok?'CHECKOUT_RESPONSE':'CHECKOUT_HTTP';
@@ -269,7 +273,7 @@ function dealAmenityDetail(label, detail) {
       const checkoutUrl = data?.checkout_url || data?.url || data?.session_url || data?.session?.url || data?.api1?.response?.url || data?.api1?.response?.result?.url;
       failureCode = "CHECKOUT_LINK";
       if (supplier && !validSupplierCheckout(data, checkoutUrl)) throw checkoutCustomerError("De betaalpagina kon niet veilig worden bevestigd. Probeer dezelfde boeking opnieuw of neem contact op met SeasonDeals.");
-      if (supplier && data.selling_price !== Number(deal.deal_price || deal.price)) {
+      if (supplier && data.selling_price !== acceptedCheckoutPrice) {
         failureCode = "CHECKOUT_PRICE";
         throw checkoutCustomerError("De betaalpagina kon niet veilig worden bevestigd. Probeer dezelfde boeking opnieuw of neem contact op met SeasonDeals.");
       }
@@ -284,21 +288,32 @@ function dealAmenityDetail(label, detail) {
     }
   }
 
-  function reviewHotelNotes(raw) {
+  function reviewHotelNotes(raw,offer) {
     return new Promise(resolve => {
       const dialog=document.createElement('dialog');
       dialog.setAttribute('aria-labelledby','sd-hotel-notes-title');
       dialog.style.cssText='width:min(620px,calc(100vw - 40px));max-height:85vh;padding:28px;border:1px solid #ddd7ce;border-radius:18px;color:#042821;background:#fffdf8;box-sizing:border-box';
-      const title=document.createElement('h2');title.id='sd-hotel-notes-title';title.textContent='Aanvullende hotelinformatie';
-      const intro=document.createElement('p');intro.textContent='Het hotel heeft onderstaande informatie toegevoegd. Lees deze vóór je doorgaat naar de betaalpagina. Je boekt en betaalt pas bij de volgende stap.';
+      const title=document.createElement('h2');title.id='sd-hotel-notes-title';title.textContent=offer?'Controleer je actuele aanbod':'Aanvullende hotelinformatie';
+      const intro=document.createElement('p');intro.textContent='Bij de laatste controle heeft het hotel het aanbod bijgewerkt. Controleer hieronder wat is veranderd. Je betaalt pas op de volgende pagina.';
       const notes=document.createElement('div');notes.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6;margin:20px 0;max-height:45vh;overflow:auto';
-      // Strip tags before decoding entities; the result is inserted only as text.
-      const decoder=document.createElement('textarea');
-      decoder.innerHTML=raw.replace(/<(?:br\s*\/?|\/p|\/div|\/li)>/gi,'\n').replace(/<[^>]*>/g,'');
-      notes.textContent=decoder.value.trim();
+      const plain=value=>{const decoder=document.createElement('textarea');decoder.innerHTML=String(value||'').replace(/<(?:br\s*\/?|\/p|\/div|\/li)>/gi,'\n').replace(/<[^>]*>/g,'');return decoder.value.trim();};
+      const paragraph=(label,value)=>{const row=document.createElement('p'),strong=document.createElement('strong');strong.textContent=label;row.append(strong,document.createTextNode(' '+plain(value)));notes.append(row);};
+      if(offer){
+        const terms=offer.terms;
+        const changed=document.createElement('ul');
+        for(const change of offer.changes){const item=document.createElement('li');item.textContent=change.label+': gewijzigd';if(change.field==='price')item.textContent=change.label+': '+formatCurrency(change.before)+' → '+formatCurrency(change.after);else if(['room','board'].includes(change.field))item.textContent=change.label+': '+plain(change.before)+' → '+plain(change.after);changed.append(item);}
+        notes.append(changed);
+        paragraph('Totaal aan SeasonDeals:',formatCurrency(terms.price));
+        paragraph('Kamer:',terms.room);paragraph('Verzorging:',terms.board);
+        if(terms.local_fees.length)for(const fee of terms.local_fees)paragraph('Ter plaatse te betalen:',fee.description+' — '+formatCurrency(fee.amount));
+        paragraph('Annuleringsvoorwaarden:',terms.cancellation);
+        for(const extra of terms.extras||[])paragraph('Extra:',extra);
+        if(terms.hotel_notes)paragraph('Goed om te weten:',terms.hotel_notes);
+        for(const change of offer.changes.filter(c=>['cancellation','local_fees'].includes(c.field))){const details=document.createElement('details'),summary=document.createElement('summary'),before=document.createElement('p');summary.textContent='Eerder getoond: '+change.label;before.textContent=Array.isArray(change.before)?change.before.map(f=>f.description+' — '+formatCurrency(f.amount)).join('\n')||'Geen afzonderlijke kosten vermeld':plain(change.before);details.append(summary,before);notes.append(details);}
+      }else notes.textContent=plain(raw);
       const actions=document.createElement('div');actions.style.cssText='display:flex;gap:12px;flex-wrap:wrap;margin-top:20px';
       const cancel=document.createElement('button');cancel.type='button';cancel.textContent='Terug naar de deal';cancel.className='button';
-      const next=document.createElement('button');next.type='button';next.textContent='Verder naar betalen';next.className='button button-primary';
+      const next=document.createElement('button');next.type='button';next.textContent='Akkoord, naar betalen';next.className='button button-primary';
       const finish=accepted=>{dialog.close();dialog.remove();resolve(accepted);};
       cancel.addEventListener('click',()=>finish(false));next.addEventListener('click',()=>finish(true));
       dialog.addEventListener('cancel',event=>{event.preventDefault();finish(false);});
