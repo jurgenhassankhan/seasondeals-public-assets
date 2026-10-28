@@ -294,7 +294,7 @@ function dealAmenityDetail(label, detail) {
       dialog.setAttribute('aria-labelledby','sd-hotel-notes-title');
       dialog.style.cssText='width:min(440px,calc(100vw - 32px));max-height:85vh;padding:22px;border:1px solid #ddd7ce;border-radius:16px;color:#042821;background:#fffdf8;box-sizing:border-box';
       const title=document.createElement('h2');title.id='sd-hotel-notes-title';title.textContent='Dit is gewijzigd';title.style.cssText='font-size:22px;line-height:1.25;margin:0 0 14px';
-      const notes=document.createElement('div');notes.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;line-height:1.5;max-height:50vh;overflow:auto';
+      const notes=document.createElement('div');notes.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;line-height:1.5;max-height:30vh;overflow:auto';
       const plain=value=>{const decoder=document.createElement('textarea');decoder.innerHTML=String(value||'').replace(/<(?:br\s*\/?|\/p|\/div|\/li)>/gi,'\n').replace(/<[^>]*>/g,'');return decoder.value.trim();};
       const paragraph=(label,value)=>{const row=document.createElement('p'),strong=document.createElement('strong');strong.textContent=label;row.append(strong,document.createTextNode(' '+plain(value)));notes.append(row);};
       if(offer){
