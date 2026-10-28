@@ -365,7 +365,7 @@ function checkoutDisplayedTerms(deal) {
     if (data?.environment !== "production" || data?.status !== "pending_payment" || data?.currency !== "EUR" || typeof url !== "string") return false;
     try {
       const parsed = new URL(url);
-      return parsed.protocol === "https:" && parsed.hostname === "checkout.stripe.com" && !parsed.username && !parsed.password && !parsed.port && /^\/(?:c|f)\/pay\/cs_live_[A-Za-z0-9_]+$/.test(parsed.pathname);
+      return parsed.protocol === "https:" && parsed.hostname === "checkout.stripe.com" && !parsed.username && !parsed.password && !parsed.port && /^\/[a-z]\/pay\/cs_live_[A-Za-z0-9_]+$/.test(parsed.pathname);
     } catch (_) { return false; }
   }
 
