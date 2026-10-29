@@ -231,7 +231,7 @@ function dealAmenityDetail(label, detail) {
       // The backend verifies provider=nuitee, production approval, occupancy and price.
       // Never send a supplier deal through the ordinary partner checkout.
       const request = supplier ? supplierRequest(deal.id, checkin, checkout, guests) : { deal_id: deal.id, checkin, checkout, guests };
-      let response = await fetch(supplier ? CONFIG.supplierCheckoutEndpoint : CONFIG.checkoutEndpoint, { method: "POST", mode: "cors", credentials: "omit", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(request) });
+      let response = supplier ? await recoverSupplierCheckout(request) : await fetch(CONFIG.checkoutEndpoint, { method: "POST", mode: "cors", credentials: "omit", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(request) });
       failureStatus = response.status;
       failureCode = response.ok ? "CHECKOUT_RESPONSE" : "CHECKOUT_HTTP";
       let responseText = await response.text();
@@ -249,7 +249,7 @@ function dealAmenityDetail(label, detail) {
         }
         if(offer) acceptedCheckoutPrice=offer.terms.price;
         failureCode = 'CHECKOUT_NETWORK';
-        response = await fetch(CONFIG.supplierCheckoutEndpoint, {method:'POST',mode:'cors',credentials:'omit',headers:{Accept:'application/json','Content-Type':'application/json'},body:JSON.stringify({...request,hotel_notes_ack:data.hotel_notes_ack})});
+        response = await recoverSupplierCheckout(request, data.hotel_notes_ack);
         failureStatus=response.status;failureCode=response.ok?'CHECKOUT_RESPONSE':'CHECKOUT_HTTP';
         responseText=await response.text();
         try {data=responseText?JSON.parse(responseText):{};} catch {data={};}
@@ -479,6 +479,45 @@ function checkoutDisplayedTerms(deal) {
 
   function supplierStorageKey(id) { return `sd-direct-checkout-v1:${id}`; }
 
+  // Keep the old key on every uncertain response. Only the server can authorize a
+  // deterministic successor after Stripe has confirmed the old session expired.
+  async function recoverSupplierCheckout(request, hotelNotesAck) {
+    let retries = 0, restarts = 0;
+    for (;;) {
+      let response, data;
+      try {
+        response = await fetch(CONFIG.supplierCheckoutEndpoint, {method:'POST',mode:'cors',credentials:'omit',headers:{Accept:'application/json','Content-Type':'application/json'},body:JSON.stringify({...request,...(hotelNotesAck ? {hotel_notes_ack:hotelNotesAck} : {})})});
+        data = await response.clone().json();
+      } catch (_) {
+        if (retries++ < 2) { await checkoutRecoveryDelay(); continue; }
+        throw checkoutCustomerError('De controle van je betaalpoging duurt langer. Klik opnieuw op boeken om dezelfde poging veilig te hervatten.');
+      }
+      if ((!response.ok && (response.status >= 500 || response.status === 429)) || (response.ok && data?.status === 'checkout_check_pending')) {
+        if (retries++ < 2) { await checkoutRecoveryDelay(); continue; }
+        throw checkoutCustomerError('Je eerdere betaalpoging wordt nog gecontroleerd. Klik opnieuw op boeken om deze te hervatten.');
+      }
+      if (response.ok && data?.status === 'checkout_paid') throw checkoutCustomerError('Deze betaalpoging is al betaald. Controleer je boekingsbevestiging; je hoeft niet opnieuw te betalen.');
+      if (response.ok && data?.status === 'checkout_processing') throw checkoutCustomerError('Je betaling wordt verwerkt. Wacht op de bevestiging; je hoeft niet opnieuw te betalen.');
+      if (!(response.ok && data?.status === 'checkout_restart')) return response;
+      if (data.environment !== 'production' || data.checkout_created !== false || data.previous_session_closed !== true || !/^[a-f0-9]{64}$/.test(data.request_key || '') || data.request_key === request.request_key || restarts++ >= 2) throw checkoutCustomerError('Je betaalpoging wordt vernieuwd. Klik opnieuw op boeken om verder te gaan.');
+      const key = supplierStorageKey(request.deal_id);
+      let saved;
+      try {
+        saved = JSON.parse(sessionStorage.getItem(key) || 'null');
+        if (saved?.request_key !== request.request_key) throw new Error('Concurrent checkout');
+        sessionStorage.setItem(key, JSON.stringify({request_key:data.request_key,created_at:Date.now(),fingerprint:JSON.stringify({deal_id:request.deal_id,checkin:request.checkin,checkout:request.checkout,guest_count:request.guest_count})}));
+      } catch (_) { throw checkoutCustomerError('Je betaalpoging kon niet worden hervat. Klik opnieuw op boeken.'); }
+      request.request_key = data.request_key;
+      hotelNotesAck = null;
+      showBookingMessage('Je betaalpagina wordt voorbereid…', 'info');
+    }
+  }
+
+  function checkoutRecoveryDelay() {
+    showBookingMessage('Je betaalpagina wordt voorbereid…', 'info');
+    return new Promise(resolve => setTimeout(resolve, 1200));
+  }
+
   function supplierRequest(id, checkin, checkout, guests) {
     const dealId = Number(id);
     if (!Number.isSafeInteger(dealId) || dealId <= 0 || !Number.isInteger(guests) || guests < 1 || guests > 6) throw checkoutCustomerError("Deze hoteldeal ondersteunt dit aantal gasten niet.");
@@ -490,8 +529,9 @@ function checkoutDisplayedTerms(deal) {
     try { saved = JSON.parse(sessionStorage.getItem(key) || "null"); }
     catch (_) { throw checkoutCustomerError("Je betaalpoging kan niet veilig worden bewaard. Neem contact op met SeasonDeals."); }
     if (saved) {
-      if (!/^[a-f0-9]{64}$/.test(saved.request_key || "") || !Number.isFinite(saved.created_at) || Date.now() < saved.created_at || Date.now() - saved.created_at >= 82800000) throw checkoutCustomerError("Een eerdere betaalpoging moet eerst worden gecontroleerd. Neem contact op met SeasonDeals.");
-      if (saved.fingerprint !== fingerprint) throw checkoutCustomerError("Er staat al een betaalpoging voor andere datums of gasten klaar. Gebruik dezelfde gegevens of neem contact op met SeasonDeals.");
+      if (!/^[a-f0-9]{64}$/.test(saved.request_key || "") || !Number.isFinite(saved.created_at)) throw checkoutCustomerError("Je eerdere betaalpoging kan niet worden herkend. Neem contact op met SeasonDeals.");
+      // Age and changed stay details are reconciled by the server, never by
+      // forgetting an existing key and potentially opening a second payment.
     } else {
       const bytes = new Uint8Array(32);
       window.crypto.getRandomValues(bytes);
@@ -569,3 +609,4 @@ function checkoutDisplayedTerms(deal) {
   function showToast(value){const toast=document.getElementById("preview-toast");if(!toast)return;toast.textContent=value;toast.classList.add("is-visible");clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>toast.classList.remove("is-visible"),3500);}
   function showError(title,message){container.innerHTML=`<section class="detail-error"><span>!</span><h1>${escapeHtml(title)}</h1><p>${escapeHtml(message)}</p><a class="button button-primary" href="${escapeAttribute(CONFIG.homePage)}#deals">Terug naar alle deals <span>→</span></a></section>`;}
 })();
+
