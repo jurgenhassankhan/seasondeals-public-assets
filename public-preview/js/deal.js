@@ -429,18 +429,26 @@ function dealAmenityDetail(label, detail) {
     arrival.value='';departure.value='';guests.value=String(policy.guests);guests.disabled=true;
     const price=card.querySelector('.booking-price');price.hidden=true;
     book.disabled=true;book.hidden=true;book.style.display='none';
-    const check=document.createElement('button');check.type='button';check.id='sd-flex-price-check';check.className='button button-primary booking-submit';check.textContent='Bekijk totaalprijs';
+    const check=document.createElement('button');check.type='button';check.id='sd-flex-price-check';check.className='button button-primary booking-submit';check.textContent='Probeer opnieuw';check.hidden=true;check.style.display='none';
     const result=document.createElement('div');result.setAttribute('role','status');result.setAttribute('aria-live','polite');
     form.insertBefore(check,book);form.insertBefore(result,book);
-    let generation=0,chosen=null;
-    const invalidate=()=>{generation++;chosen=null;book.disabled=true;book.hidden=true;book.style.display='none';check.disabled=false;result.textContent='';price.hidden=true;showBookingMessage('','info');};
-    arrival.addEventListener('input',invalidate);departure.addEventListener('input',invalidate);
+    let generation=0,chosen=null,priceTimer;
+    const invalidate=()=>{generation++;clearTimeout(priceTimer);chosen=null;book.disabled=true;book.hidden=true;book.style.display='none';check.disabled=false;check.hidden=true;check.style.display='none';result.textContent='';price.hidden=true;showBookingMessage('','info');};
+    const schedulePrice=()=>{
+      invalidate();
+      if(!arrival.value||!departure.value)return;
+      if(!validStayDay(arrival.value)||!validStayDay(departure.value)||arrival.value<policy.start||departure.value<=arrival.value){result.textContent='Kies een aankomstdatum vanaf vandaag en een latere vertrekdatum.';return;}
+      result.textContent='Prijs ophalen…';
+      priceTimer=setTimeout(loadPrice,450);
+    };
+    arrival.addEventListener('input',schedulePrice);departure.addEventListener('input',schedulePrice);
+    arrival.addEventListener('change',schedulePrice);departure.addEventListener('change',schedulePrice);
     // Prevent stale selection even when a date input changes without a submit.
-    form.addEventListener('submit',event=>{if(!chosen||chosen.checkin!==arrival.value||chosen.checkout!==departure.value){event.preventDefault();event.stopImmediatePropagation();showBookingMessage('Bekijk eerst de totaalprijs voor je gekozen datums.','error');}},true);
-    check.addEventListener('click',async()=>{
+    form.addEventListener('submit',event=>{if(!chosen||chosen.checkin!==arrival.value||chosen.checkout!==departure.value){event.preventDefault();event.stopImmediatePropagation();showBookingMessage('Wacht even tot de prijs voor je gekozen datums is opgehaald.','info');}},true);
+    async function loadPrice(){
       invalidate();const checkin=arrival.value,checkout=departure.value,id=generation;
       if(!validStayDay(checkin)||!validStayDay(checkout)||checkin<policy.start||checkout<=checkin){result.textContent='Kies een aankomstdatum vanaf vandaag en een latere vertrekdatum.';return;}
-      check.disabled=true;check.textContent='Prijs ophalen…';
+      check.disabled=true;result.textContent='Prijs ophalen…';
       try{
         const response=await fetch(CONFIG.dealsEndpoint.replace(/\/deals$/,'/supplier/production/stay-options'),{method:'POST',mode:'cors',credentials:'omit',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({deal_id:Number(deal.id),stay:{checkin,checkout,guests:policy.guests}}),signal:AbortSignal.timeout(25000)});
         if(!response.ok)throw Error('De prijs kon niet worden opgehaald. Probeer het opnieuw.');
@@ -452,9 +460,10 @@ function dealAmenityDetail(label, detail) {
         deal={...deal,price:o.price,deal_price:o.price,room:o.room,board:o.board,cancellation_policy:o.cancellation,travel_period_start:checkin,travel_period_end:checkout,minimum_nights:r.nights,booking_enabled:true};
         result.innerHTML=`<p><strong>${escapeHtml(formatCurrency(o.price))} totaal</strong><br>${r.nights} ${r.nights===1?'nacht':'nachten'} · ${policy.guests} personen</p><p>${escapeHtml(o.room)} · ${escapeHtml(o.board)}</p><p>${escapeHtml(o.cancellation)}</p>`+o.local_fees.map(f=>`<p>${escapeHtml(f.description)}: ${escapeHtml(formatCurrency(f.amount))} ter plaatse</p>`).join('');
         book.hidden=false;book.style.display='';book.disabled=false;book.innerHTML='Verder naar betalen <span>→</span>';
-      }catch(error){if(id===generation)result.textContent=error.message;}
-      finally{if(id===generation){check.disabled=false;check.textContent='Bekijk totaalprijs';}}
-    });
+      }catch(error){if(id===generation){result.textContent=error.message;check.hidden=false;check.style.display='';}}
+      finally{if(id===generation)check.disabled=false;}
+    }
+    check.addEventListener('click',loadPrice);
   }
 
   async function initStayChoice(knownPolicy) {
