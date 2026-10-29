@@ -64,7 +64,7 @@ function dealAmenityDetail(label, detail) {
       // The capability endpoint independently checks approval and exact supplier identity.
       try {
         const capResponse=await fetch(CONFIG.dealsEndpoint.replace(/\/deals$/, '/supplier/production/stay-options'),{method:'POST',mode:'cors',credentials:'omit',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({deal_id:Number(dealId),stay:null}),signal:AbortSignal.timeout(15000)});
-        if(capResponse.ok){const p=await capResponse.json();stayCapability=p;if(validStayPolicy(p,Number(dealId))&&p.deal?.id===Number(dealId)&&p.deal.source==='provider_sync'&&p.deal.booking_enabled===false){pendingDeal={...(pendingDeal?.content_verified===true?pendingDeal:{}),...p.deal};if(checkoutBusy)return;deal=pendingDeal;gallery=getImages(pendingDeal);renderFlexibleDeal(p);bindDealEvents();await initStayChoice(p);return;}}
+        if(capResponse.ok){const p=await capResponse.json();stayCapability=p;if(validStayPolicy(p,Number(dealId))&&p.deal?.id===Number(dealId)&&p.deal.source==='provider_sync'&&(p.deal.booking_enabled===false||p.mode==='free-calendar'&&p.can_book===true)){pendingDeal={...(pendingDeal?.content_verified===true?pendingDeal:{}),...p.deal};if(checkoutBusy)return;deal=pendingDeal;gallery=getImages(pendingDeal);renderFlexibleDeal(p);bindDealEvents();await initStayChoice(p);return;}}
       }catch{}
       }
       if (!response.ok) throw new Error(`De dealservice gaf status ${response.status}.`);
@@ -156,7 +156,7 @@ function dealAmenityDetail(label, detail) {
         <section><span class="detail-section-label">Over deze deal</span><h2>Een bijzonder moment voor een mooie prijs.</h2><p>${escapeHtml(mainDescription)}</p>${longDescription && longDescription !== mainDescription ? `<p class="detail-description-long">${formatText(longDescription)}</p>` : ""}</section>
         ${amenities.length ? `<section><span class="detail-section-label">Dit is inbegrepen</span><h2>Jouw verblijf</h2><div class="amenities-grid">${amenities.map(renderAmenity).join("")}</div></section>` : ""}
         ${Array.isArray(deal.facility_items) && deal.facility_items.length ? `<section><h2>Voorzieningen en voorwaarden</h2><div class="amenities-grid">${deal.facility_items.map(row => renderAmenity([true,row.icon,row.label,row.detail])).join("")}</div></section>` : ""}
-        <section><span class="detail-section-label">Geldigheid</span><h2>Plan jouw moment.</h2><div class="period-card"><div><span>Te gebruiken vanaf</span><strong>${travelStart ? formatDate(travelStart) : "Zie dealvoorwaarden"}</strong></div><div><span>${flexiblePolicy ? "Laatste vertrek" : "Te gebruiken tot en met"}</span><strong>${travelEnd ? formatDate(travelEnd) : "Zie dealvoorwaarden"}</strong></div></div></section>
+        <section><span class="detail-section-label">Geldigheid</span><h2>Plan jouw moment.</h2><div class="period-card"><div><span>Te gebruiken vanaf</span><strong>${travelStart ? formatDate(travelStart) : "Zie dealvoorwaarden"}</strong></div><div><span>${flexiblePolicy ? "Laatste vertrek" : "Te gebruiken tot en met"}</span><strong>${travelEnd ? formatDate(travelEnd) : flexiblePolicy?.mode==='free-calendar'?"Zelf te kiezen":"Zie dealvoorwaarden"}</strong></div></div></section>
         <section><span class="detail-section-label">Annuleren en wijzigen</span><h2>Goed om vooraf te weten.</h2><div class="policy-card">${formatText(policy)}</div></section>
       </article>
       <aside class="booking-card" aria-label="${flexiblePolicy ? "Verblijf kiezen" : "Deal boeken"}"><div class="booking-price" ${flexiblePolicy ? 'hidden style="display:none"' : ""}><span>${!checking && original > price ? `<del>${escapeHtml(formatCurrency(original))}</del>` : ""}<strong>${checking ? "Laatst bekend: " : ""}${escapeHtml(formatCurrency(price))}</strong><small>${deal.max_guests > 1 ? `voor maximaal ${formatNumber(deal.max_guests)} personen` : "per boeking"}</small></span>${!checking && saving > 0 ? `<span class="booking-save">Bespaar ${escapeHtml(formatCurrency(saving))}</span>` : ""}</div>
@@ -174,15 +174,15 @@ function dealAmenityDetail(label, detail) {
     const extras = Array.isArray(deal.included_items) ? deal.included_items.filter(row => !['☾','▱','♧'].includes(row.icon)) : [];
     deal = {...deal,
       title: `Kies je verblijf bij ${text(deal.hotel_name,'het hotel')}`,
-      short_description: `${policy.min_nights}–${policy.max_nights} nachten in ${deal.room} voor ${policy.guests} personen.`,
-      long_description: `Verblijf bij ${text(deal.hotel_name,'het hotel')} in ${deal.room}, met ${deal.board}. Kies jouw aankomst en vertrek binnen de onderstaande periode. De actuele totaalprijs en annuleringsvoorwaarden worden voor jouw datums gecontroleerd.`,
+      short_description: policy.mode==='free-calendar'?`Kies zelf je aankomst en vertrek. ${deal.room} voor ${policy.guests} personen.`:`${policy.min_nights}–${policy.max_nights} nachten in ${deal.room} voor ${policy.guests} personen.`,
+      long_description: `Verblijf bij ${text(deal.hotel_name,'het hotel')} in ${deal.room}, met ${deal.board}. Kies zelf jouw aankomst en vertrek. De actuele totaalprijs en annuleringsvoorwaarden worden voor jouw datums gecontroleerd.`,
       price: null, deal_price: null, original_price: null,
       travel_period_start: policy.start, travel_period_end: policy.end,
       minimum_nights: policy.min_nights, max_guests: policy.guests,
-      cancellation_policy: 'De annuleringsvoorwaarden verschillen per gekozen verblijf. Bekijk de actuele voorwaarden bij het prijsantwoord voor jouw datums. Boeken is nog niet geopend.',
+      cancellation_policy: 'De annuleringsvoorwaarden en totaalprijs worden getoond voor jouw gekozen datums.',
       content_verified: true,
       included_items: [
-        {icon:'☾',label:`${policy.min_nights}–${policy.max_nights} nachten naar keuze`,detail:'Binnen de onderstaande verblijfsperiode'},
+        {icon:'☾',label:policy.mode==='free-calendar'?'Vrije datumkeuze':`${policy.min_nights}–${policy.max_nights} nachten naar keuze`,detail:'Kies zelf aankomst en vertrek'},
         {icon:'▱',label:deal.room,detail:deal.board},
         {icon:'♧',label:`Voor ${policy.guests} personen`,detail:'Bezetting van de aangeboden kamer'},
         ...extras
@@ -411,7 +411,47 @@ function dealAmenityDetail(label, detail) {
 
   // Read-only date selection. An explicit server policy enables it per supplier deal.
   // This flow never calls checkout and cannot open production booking gates.
+  async function initFreeCalendar(policy) {
+    if(!validStayPolicy(policy,Number(deal.id)))return;
+    const form=document.getElementById('booking-form'),card=form?.closest('.booking-card');
+    if(!form||!card)return;
+    form.hidden=false;form.style.display='';
+    const arrival=document.getElementById('sd-checkin'),departure=document.getElementById('sd-checkout'),guests=document.getElementById('sd-guests'),book=document.getElementById('sd-check-availability');
+    arrival.disabled=false;departure.disabled=false;arrival.min=policy.start;departure.min=policy.start;
+    arrival.removeAttribute('max');departure.removeAttribute('max');
+    arrival.value='';departure.value='';guests.value=String(policy.guests);guests.disabled=true;
+    const price=card.querySelector('.booking-price');price.hidden=true;
+    book.disabled=true;book.hidden=true;
+    const check=document.createElement('button');check.type='button';check.className='button button-primary booking-submit';check.textContent='Bekijk totaalprijs';
+    const result=document.createElement('div');result.setAttribute('role','status');result.setAttribute('aria-live','polite');
+    form.insertBefore(check,book);form.insertBefore(result,book);
+    let generation=0,chosen=null;
+    const invalidate=()=>{generation++;chosen=null;book.disabled=true;book.hidden=true;check.disabled=false;result.textContent='';price.hidden=true;showBookingMessage('','info');};
+    arrival.addEventListener('input',invalidate);departure.addEventListener('input',invalidate);
+    // Prevent stale selection even when a date input changes without a submit.
+    form.addEventListener('submit',event=>{if(!chosen||chosen.checkin!==arrival.value||chosen.checkout!==departure.value){event.preventDefault();event.stopImmediatePropagation();showBookingMessage('Bekijk eerst de totaalprijs voor je gekozen datums.','error');}},true);
+    check.addEventListener('click',async()=>{
+      invalidate();const checkin=arrival.value,checkout=departure.value,id=generation;
+      if(!validStayDay(checkin)||!validStayDay(checkout)||checkin<policy.start||checkout<=checkin){result.textContent='Kies een aankomstdatum vanaf vandaag en een latere vertrekdatum.';return;}
+      check.disabled=true;check.textContent='Prijs ophalen…';
+      try{
+        const response=await fetch(CONFIG.dealsEndpoint.replace(/\/deals$/,'/supplier/production/stay-options'),{method:'POST',mode:'cors',credentials:'omit',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({deal_id:Number(deal.id),stay:{checkin,checkout,guests:policy.guests}}),signal:AbortSignal.timeout(25000)});
+        if(!response.ok)throw Error('De prijs kon niet worden opgehaald. Probeer het opnieuw.');
+        const r=await response.json();if(id!==generation)return;
+        if(!validStayResult(r,Number(deal.id),checkin,checkout,policy.guests))throw Error('De prijs kon niet worden bevestigd. Probeer het opnieuw.');
+        if(r.status!=='available'){result.textContent='Geen passend aanbod voor deze datums. Kies andere datums.';return;}
+        const o=r.options[0];if(!Array.isArray(o.local_fees)||o.local_fees.some(f=>f.currency!=='EUR'||!Number.isFinite(f.amount)||f.amount<0))throw Error('De lokale kosten konden niet worden bevestigd.');
+        chosen=r;
+        deal={...deal,price:o.price,deal_price:o.price,room:o.room,board:o.board,cancellation_policy:o.cancellation,travel_period_start:checkin,travel_period_end:checkout,minimum_nights:r.nights,booking_enabled:true};
+        result.innerHTML=`<p><strong>${escapeHtml(formatCurrency(o.price))} totaal</strong><br>${r.nights} ${r.nights===1?'nacht':'nachten'} · ${policy.guests} personen</p><p>${escapeHtml(o.room)} · ${escapeHtml(o.board)}</p><p>${escapeHtml(o.cancellation)}</p>`+o.local_fees.map(f=>`<p>${escapeHtml(f.description)}: ${escapeHtml(formatCurrency(f.amount))} ter plaatse</p>`).join('');
+        book.hidden=false;book.disabled=false;book.innerHTML='Verder naar betalen <span>→</span>';
+      }catch(error){if(id===generation)result.textContent=error.message;}
+      finally{if(id===generation){check.disabled=false;check.textContent='Bekijk totaalprijs';}}
+    });
+  }
+
   async function initStayChoice(knownPolicy) {
+    if(knownPolicy?.mode==='free-calendar')return initFreeCalendar(knownPolicy);
     if (deal.source !== 'provider_sync') return;
     const endpoint = CONFIG.dealsEndpoint.replace(/\/deals$/, '/supplier/production/stay-options');
     const request = async stay => {
@@ -453,10 +493,10 @@ function dealAmenityDetail(label, detail) {
     });
   }
   function validStayDay(value) {return typeof value==='string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value+'T00:00:00Z')) && new Date(value+'T00:00:00Z').toISOString().slice(0,10)===value;}
-  function validStayPolicy(p,id) {return !!p && p.enabled===true && p.deal_id===id && p.can_book===false && validStayDay(p.start) && validStayDay(p.end) && p.start<p.end && Number.isInteger(p.min_nights) && Number.isInteger(p.max_nights) && p.min_nights>=1 && p.max_nights>=p.min_nights && p.max_nights<=30 && Number.isInteger(p.guests) && p.guests>=1 && p.guests<=6;}
+  function validStayPolicy(p,id) {if(p?.mode==='free-calendar')return p.enabled===true&&p.deal_id===id&&id===33&&p.can_book===true&&validStayDay(p.start)&&p.end===null&&p.min_nights===1&&p.max_nights===null&&Number.isInteger(p.guests)&&p.guests>=1&&p.guests<=6&&typeof p.expected_terms==='string';return !!p && p.enabled===true && p.deal_id===id && p.can_book===false && validStayDay(p.start) && validStayDay(p.end) && p.start<p.end && Number.isInteger(p.min_nights) && Number.isInteger(p.max_nights) && p.min_nights>=1 && p.max_nights>=p.min_nights && p.max_nights<=30 && Number.isInteger(p.guests) && p.guests>=1 && p.guests<=6;}
   function validStayDates(p,a,b) {const nights=(Date.parse(b)-Date.parse(a))/86400000;return validStayDay(a)&&validStayDay(b)&&a>=p.start&&b<=p.end&&nights>=p.min_nights&&nights<=p.max_nights;}
   function validStayResult(r,id,a,b,guests,now=Date.now()) {
-    return !!r && r.deal_id===id && r.checkin===a && r.checkout===b && r.guests===guests && r.nights===(Date.parse(b)-Date.parse(a))/86400000 && r.currency==='EUR' && r.can_book===false && Number.isFinite(r.checked_at) && Number.isFinite(r.valid_until) && r.checked_at<=now+5000 && r.valid_until>now && r.valid_until>r.checked_at && r.valid_until-r.checked_at<=60000 && Array.isArray(r.options) && r.options.length<=6 && ['available','unavailable','unknown','price_review_required'].includes(r.status) && (r.status==='available'?r.options.length>0:r.options.length===0) && r.options.every(o=>o && typeof o.room==='string' && typeof o.board==='string' && typeof o.cancellation==='string' && Number.isFinite(o.price)&&o.price>0);
+    return !!r && r.deal_id===id && r.checkin===a && r.checkout===b && r.guests===guests && r.nights===(Date.parse(b)-Date.parse(a))/86400000 && r.currency==='EUR' && (r.can_book===false||id===33&&r.can_book===true) && Number.isFinite(r.checked_at) && Number.isFinite(r.valid_until) && r.checked_at<=now+5000 && r.valid_until>now && r.valid_until>r.checked_at && r.valid_until-r.checked_at<=60000 && Array.isArray(r.options) && r.options.length<=6 && ['available','unavailable','unknown','price_review_required'].includes(r.status) && (r.status==='available'?r.options.length>0:r.options.length===0) && r.options.every(o=>o && typeof o.room==='string' && typeof o.board==='string' && typeof o.cancellation==='string' && Number.isFinite(o.price)&&o.price>0);
   }
 
   // BEGIN DISPLAYED CHECKOUT TERMS
@@ -521,7 +561,7 @@ function checkoutDisplayedTerms(deal) {
   function supplierRequest(id, checkin, checkout, guests) {
     const dealId = Number(id);
     if (!Number.isSafeInteger(dealId) || dealId <= 0 || !Number.isInteger(guests) || guests < 1 || guests > 6) throw checkoutCustomerError("Deze hoteldeal ondersteunt dit aantal gasten niet.");
-    const request = { deal_id: dealId, checkin, checkout, guest_count: guests, expected_terms: checkoutDisplayedTerms(deal) };
+    const request = { deal_id: dealId, checkin, checkout, guest_count: guests, expected_terms: stayCapability?.mode==='free-calendar'?stayCapability.expected_terms:checkoutDisplayedTerms(deal) };
     // Reuse the same key after reloading changed terms. The server checks those
     // terms against an existing intent; it can never replace a previously created order.
     const fingerprint = JSON.stringify({deal_id: dealId, checkin, checkout, guest_count: guests}), key = supplierStorageKey(id);
@@ -609,4 +649,5 @@ function checkoutDisplayedTerms(deal) {
   function showToast(value){const toast=document.getElementById("preview-toast");if(!toast)return;toast.textContent=value;toast.classList.add("is-visible");clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>toast.classList.remove("is-visible"),3500);}
   function showError(title,message){container.innerHTML=`<section class="detail-error"><span>!</span><h1>${escapeHtml(title)}</h1><p>${escapeHtml(message)}</p><a class="button button-primary" href="${escapeAttribute(CONFIG.homePage)}#deals">Terug naar alle deals <span>→</span></a></section>`;}
 })();
+
 
