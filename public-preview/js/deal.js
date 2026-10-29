@@ -175,7 +175,7 @@ function dealAmenityDetail(label, detail) {
     deal = {...deal,
       title: `Kies je verblijf bij ${text(deal.hotel_name,'het hotel')}`,
       short_description: policy.mode==='free-calendar'?`Kies zelf je aankomst en vertrek. ${deal.room} voor ${policy.guests} personen.`:`${policy.min_nights}–${policy.max_nights} nachten in ${deal.room} voor ${policy.guests} personen.`,
-      long_description: `Verblijf bij ${text(deal.hotel_name,'het hotel')} in ${deal.room}, met ${deal.board}. Kies zelf jouw aankomst en vertrek. De actuele totaalprijs en annuleringsvoorwaarden worden voor jouw datums gecontroleerd.`,
+      long_description: `Verblijf bij ${text(deal.hotel_name,'het hotel')} in ${deal.room}. ${deal.board}. Kies zelf jouw aankomst en vertrek. De actuele totaalprijs en annuleringsvoorwaarden worden voor jouw datums gecontroleerd.`,
       price: null, deal_price: null, original_price: null,
       travel_period_start: policy.start, travel_period_end: policy.end,
       minimum_nights: policy.min_nights, max_guests: policy.guests,
@@ -222,6 +222,7 @@ function dealAmenityDetail(label, detail) {
     if (new Date(`${checkout}T00:00:00`) <= new Date(`${checkin}T00:00:00`)) return showBookingMessage("De check-outdatum moet na de check-indatum liggen.", "error");
     const button = document.getElementById("sd-check-availability");
     checkoutBusy = true;
+    setFlexibleBusy(true);
     button.disabled = true; button.innerHTML = "Je wordt doorgestuurd…";
     showBookingMessage("Je wordt doorgestuurd naar de beveiligde betaalpagina…", "info");
     let failureCode = "CHECKOUT_NETWORK", failureStatus = 0;
@@ -244,7 +245,7 @@ function dealAmenityDetail(label, detail) {
         const approved = await reviewHotelNotes(data.hotel_notes,offer);
         if (!approved) {
           showBookingMessage('Je hebt nog niet geboekt of betaald.', 'info');
-          checkoutBusy=false;button.disabled=false;button.innerHTML='Bekijk beschikbaarheid & boek <span>→</span>';
+          checkoutBusy=false;setFlexibleBusy(false);button.disabled=false;button.innerHTML='Bekijk beschikbaarheid & boek <span>→</span>';
           return;
         }
         if(offer) acceptedCheckoutPrice=offer.terms.price;
@@ -284,6 +285,7 @@ function dealAmenityDetail(label, detail) {
       console.error("SeasonDeals checkout failed:", failureCode || "offer changed");
       showBookingMessage(error.customerMessage || "Boeken lukt op dit moment niet. Probeer het later opnieuw of neem contact op met SeasonDeals.", "error");
       checkoutBusy = false;
+      setFlexibleBusy(false);
       button.disabled = false; button.innerHTML = "Bekijk beschikbaarheid & boek <span>→</span>";
     }
   }
@@ -411,6 +413,11 @@ function dealAmenityDetail(label, detail) {
 
   // Read-only date selection. An explicit server policy enables it per supplier deal.
   // This flow never calls checkout and cannot open production booking gates.
+  function setFlexibleBusy(busy) {
+    if(stayCapability?.mode!=='free-calendar')return;
+    for(const id of ['sd-checkin','sd-checkout','sd-flex-price-check']){const element=document.getElementById(id);if(element)element.disabled=busy;}
+  }
+
   async function initFreeCalendar(policy) {
     if(!validStayPolicy(policy,Number(deal.id)))return;
     const form=document.getElementById('booking-form'),card=form?.closest('.booking-card');
@@ -421,12 +428,12 @@ function dealAmenityDetail(label, detail) {
     arrival.removeAttribute('max');departure.removeAttribute('max');
     arrival.value='';departure.value='';guests.value=String(policy.guests);guests.disabled=true;
     const price=card.querySelector('.booking-price');price.hidden=true;
-    book.disabled=true;book.hidden=true;
-    const check=document.createElement('button');check.type='button';check.className='button button-primary booking-submit';check.textContent='Bekijk totaalprijs';
+    book.disabled=true;book.hidden=true;book.style.display='none';
+    const check=document.createElement('button');check.type='button';check.id='sd-flex-price-check';check.className='button button-primary booking-submit';check.textContent='Bekijk totaalprijs';
     const result=document.createElement('div');result.setAttribute('role','status');result.setAttribute('aria-live','polite');
     form.insertBefore(check,book);form.insertBefore(result,book);
     let generation=0,chosen=null;
-    const invalidate=()=>{generation++;chosen=null;book.disabled=true;book.hidden=true;check.disabled=false;result.textContent='';price.hidden=true;showBookingMessage('','info');};
+    const invalidate=()=>{generation++;chosen=null;book.disabled=true;book.hidden=true;book.style.display='none';check.disabled=false;result.textContent='';price.hidden=true;showBookingMessage('','info');};
     arrival.addEventListener('input',invalidate);departure.addEventListener('input',invalidate);
     // Prevent stale selection even when a date input changes without a submit.
     form.addEventListener('submit',event=>{if(!chosen||chosen.checkin!==arrival.value||chosen.checkout!==departure.value){event.preventDefault();event.stopImmediatePropagation();showBookingMessage('Bekijk eerst de totaalprijs voor je gekozen datums.','error');}},true);
@@ -444,7 +451,7 @@ function dealAmenityDetail(label, detail) {
         chosen=r;
         deal={...deal,price:o.price,deal_price:o.price,room:o.room,board:o.board,cancellation_policy:o.cancellation,travel_period_start:checkin,travel_period_end:checkout,minimum_nights:r.nights,booking_enabled:true};
         result.innerHTML=`<p><strong>${escapeHtml(formatCurrency(o.price))} totaal</strong><br>${r.nights} ${r.nights===1?'nacht':'nachten'} · ${policy.guests} personen</p><p>${escapeHtml(o.room)} · ${escapeHtml(o.board)}</p><p>${escapeHtml(o.cancellation)}</p>`+o.local_fees.map(f=>`<p>${escapeHtml(f.description)}: ${escapeHtml(formatCurrency(f.amount))} ter plaatse</p>`).join('');
-        book.hidden=false;book.disabled=false;book.innerHTML='Verder naar betalen <span>→</span>';
+        book.hidden=false;book.style.display='';book.disabled=false;book.innerHTML='Verder naar betalen <span>→</span>';
       }catch(error){if(id===generation)result.textContent=error.message;}
       finally{if(id===generation){check.disabled=false;check.textContent='Bekijk totaalprijs';}}
     });
