@@ -438,7 +438,7 @@ function dealAmenityDetail(label, detail) {
       invalidate();
       if(!arrival.value||!departure.value)return;
       if(!validStayDay(arrival.value)||!validStayDay(departure.value)||arrival.value<policy.start||departure.value<=arrival.value){result.textContent='Kies een aankomstdatum vanaf vandaag en een latere vertrekdatum.';return;}
-      result.textContent='Prijs ophalen…';
+      result.textContent='Prijs ophalen… Even geduld a.u.b.';
       priceTimer=setTimeout(loadPrice,450);
     };
     arrival.addEventListener('input',schedulePrice);departure.addEventListener('input',schedulePrice);
@@ -448,7 +448,7 @@ function dealAmenityDetail(label, detail) {
     async function loadPrice(){
       invalidate();const checkin=arrival.value,checkout=departure.value,id=generation;
       if(!validStayDay(checkin)||!validStayDay(checkout)||checkin<policy.start||checkout<=checkin){result.textContent='Kies een aankomstdatum vanaf vandaag en een latere vertrekdatum.';return;}
-      check.disabled=true;result.textContent='Prijs ophalen…';
+      check.disabled=true;result.textContent='Prijs ophalen… Even geduld a.u.b.';
       try{
         const response=await fetch(CONFIG.dealsEndpoint.replace(/\/deals$/,'/supplier/production/stay-options'),{method:'POST',mode:'cors',credentials:'omit',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({deal_id:Number(deal.id),stay:{checkin,checkout,guests:policy.guests}}),signal:AbortSignal.timeout(25000)});
         if(!response.ok)throw Error('De prijs kon niet worden opgehaald. Probeer het opnieuw.');
