@@ -146,7 +146,8 @@ function dealAmenityDetail(label, detail) {
     const mainDescription = text(deal.short_description || deal.description, "Ontdek deze bijzondere SeasonDeals-aanbieding en bekijk hieronder alles wat is inbegrepen.");
     const longDescription = text(deal.long_description, "");
     const policy = text(deal.cancellation_policy, "Controleer vóór het boeken altijd de voorwaarden van deze deal. Neem bij vragen contact op met SeasonDeals.");
-    document.title = `${title} · SeasonDeals`;
+    // Preserve the server-generated SEO title on canonical CMS pages.
+    if (!cmsDealId) document.title = `${title} · SeasonDeals`;
 
     container.innerHTML = `<div class="detail-container">
       <nav class="detail-breadcrumbs" aria-label="Broodkruimel"><a href="${escapeAttribute(CONFIG.homePage)}">Home</a><span>›</span><a href="${escapeAttribute(CONFIG.homePage)}#deals">Deals</a><span>›</span><span>${escapeHtml(title)}</span></nav>
