@@ -226,12 +226,16 @@ function dealAmenityDetail(label, detail) {
     button.disabled = true; button.innerHTML = "Je wordt doorgestuurd…";
     showBookingMessage("Je wordt doorgestuurd naar de beveiligde betaalpagina…", "info");
     let failureCode = "CHECKOUT_NETWORK", failureStatus = 0;
+    let journey=createBookingJourney(), journeyRequest=null;
+    recordBookingJourney(journey,'started',null);
     let acceptedCheckoutPrice=Number(deal.deal_price||deal.price);
     try {
       const supplier = deal.source === "provider_sync";
       // The backend verifies provider=nuitee, production approval, occupancy and price.
       // Never send a supplier deal through the ordinary partner checkout.
       const request = supplier ? supplierRequest(deal.id, checkin, checkout, guests) : { deal_id: deal.id, checkin, checkout, guests };
+      journeyRequest=request;
+      recordBookingJourney(journey,'started',request);
       let response = supplier ? await recoverSupplierCheckout(request) : await fetch(CONFIG.checkoutEndpoint, { method: "POST", mode: "cors", credentials: "omit", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(request) });
       failureStatus = response.status;
       failureCode = response.ok ? "CHECKOUT_RESPONSE" : "CHECKOUT_HTTP";
@@ -244,6 +248,7 @@ function dealAmenityDetail(label, detail) {
         if (offer && (!offer.terms || offer.terms.deal_id!==Number(deal.id) || offer.terms.currency!=='EUR' || !Number.isFinite(offer.terms.price) || offer.terms.price<=0 || !Array.isArray(offer.changes) || !Array.isArray(offer.terms.local_fees))) throw checkoutCustomerError('De actuele voorwaarden konden niet worden gecontroleerd.');
         const approved = await reviewHotelNotes(data.hotel_notes,offer);
         if (!approved) {
+          recordBookingJourney(journey,'cancelled',request);
           showBookingMessage('Je hebt nog niet geboekt of betaald.', 'info');
           checkoutBusy=false;setFlexibleBusy(false);button.disabled=false;button.innerHTML='Bekijk beschikbaarheid & boek <span>→</span>';
           return;
@@ -279,8 +284,10 @@ function dealAmenityDetail(label, detail) {
         throw checkoutCustomerError("De betaalpagina kon niet veilig worden bevestigd. Probeer dezelfde boeking opnieuw of neem contact op met SeasonDeals.");
       }
       if (!checkoutUrl) throw checkoutCustomerError("De betaalpagina kon niet worden geopend. Probeer het opnieuw.");
+      recordBookingJourney(journey,'redirect',request);
       window.location.href = checkoutUrl;
     } catch (error) {
+      recordBookingJourney(journey,error.bookingStage||(failureCode?'failed':'changed'),journeyRequest,failureCode,failureStatus);
       reportCheckoutError(failureCode, failureStatus);
       console.error("SeasonDeals checkout failed:", failureCode || "offer changed");
       showBookingMessage(error.customerMessage || "Boeken lukt op dit moment niet. Probeer het later opnieuw of neem contact op met SeasonDeals.", "error");
@@ -386,6 +393,21 @@ function dealAmenityDetail(label, detail) {
   }
 
     // Best-effort technical telemetry only: no guest details, URLs, tokens or raw errors.
+  // Passive diagnostics only: a failure here must never interrupt booking.
+  function createBookingJourney() {
+    try {
+      const bytes=new Uint8Array(16);window.crypto.getRandomValues(bytes);
+      const q=new URLSearchParams(location.search);
+      return {attempt_id:Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join(''),deal_id:Number(deal.id),is_test:q.get('sd_test')==='1',source:q.get('utm_source')||'',medium:q.get('utm_medium')||'',campaign:q.get('utm_campaign')||''};
+    } catch (_) {return null;}
+  }
+  function recordBookingJourney(journey,stage,request,code,http_status) {
+    if(!journey)return;
+    try {
+      fetch(new URL('booking-event',CONFIG.checkoutEndpoint).href,{method:'POST',mode:'cors',credentials:'omit',keepalive:true,headers:{'Content-Type':'application/json'},body:JSON.stringify({...journey,stage,request_key:request?.request_key||'',code:code||'',http_status:http_status||0})}).catch(()=>{});
+    } catch (_) {}
+  }
+
   function reportCheckoutError(code, httpStatus) {
     if (!code || !Number.isInteger(Number(deal?.id))) return;
     try {
@@ -550,10 +572,10 @@ function checkoutDisplayedTerms(deal) {
       }
       if ((!response.ok && (response.status >= 500 || response.status === 429)) || (response.ok && data?.status === 'checkout_check_pending')) {
         if (retries++ < 2) { await checkoutRecoveryDelay(); continue; }
-        throw checkoutCustomerError('Je eerdere betaalpoging wordt nog gecontroleerd. Klik opnieuw op boeken om deze te hervatten.');
+        throw checkoutCustomerError('Je eerdere betaalpoging wordt nog gecontroleerd. Klik opnieuw op boeken om deze te hervatten.','pending');
       }
-      if (response.ok && data?.status === 'checkout_paid') throw checkoutCustomerError('Deze betaalpoging is al betaald. Controleer je boekingsbevestiging; je hoeft niet opnieuw te betalen.');
-      if (response.ok && data?.status === 'checkout_processing') throw checkoutCustomerError('Je betaling wordt verwerkt. Wacht op de bevestiging; je hoeft niet opnieuw te betalen.');
+      if (response.ok && data?.status === 'checkout_paid') throw checkoutCustomerError('Deze betaalpoging is al betaald. Controleer je boekingsbevestiging; je hoeft niet opnieuw te betalen.','pending');
+      if (response.ok && data?.status === 'checkout_processing') throw checkoutCustomerError('Je betaling wordt verwerkt. Wacht op de bevestiging; je hoeft niet opnieuw te betalen.','pending');
       if (!(response.ok && data?.status === 'checkout_restart')) return response;
       if (data.environment !== 'production' || data.checkout_created !== false || data.previous_session_closed !== true || !/^[a-f0-9]{64}$/.test(data.request_key || '') || data.request_key === request.request_key || restarts++ >= 2) throw checkoutCustomerError('Je betaalpoging wordt vernieuwd. Klik opnieuw op boeken om verder te gaan.');
       const key = supplierStorageKey(request.deal_id);
@@ -655,9 +677,10 @@ function checkoutDisplayedTerms(deal) {
   function displayCity(value) { const city = text(value, "").trim(); return /^the hague$/i.test(city) ? "Den Haag" : city; }
   function escapeHtml(value){return String(value??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");}
   function escapeAttribute(value){return escapeHtml(value).replace(/`/g,"&#096;");}
-  function checkoutCustomerError(message) {
+  function checkoutCustomerError(message, bookingStage) {
     const error = new Error(message);
     error.customerMessage = message;
+    error.bookingStage = bookingStage;
     return error;
   }
 
