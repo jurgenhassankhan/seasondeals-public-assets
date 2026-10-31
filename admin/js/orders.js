@@ -8,9 +8,8 @@
     try {
       const admin = await core.requireAuth();
       if (!admin) return;
-      core.mountShell({ active: "orders", title: "Omzet & orders", subtitle: "Bekijk gerealiseerde omzet en alle bestellingen op het platform." }, admin);
+      core.mountShell({ active: "orders", title: "Omzet & orders", subtitle: "Bevestigde betalingen voor productieorders." }, admin);
       document.getElementById("orders-filters")?.addEventListener("submit", (event) => { event.preventDefault(); page = 1; load(); });
-      document.getElementById("orders-scope").onchange = () => { page = 1; load(); };
       load();
     } catch (error) { showError(error.message); }
   }
@@ -21,11 +20,10 @@
     target.className = "loading-state";
     target.innerHTML = '<div class="spinner"></div>Orders ophalen…';
     const query = new URLSearchParams({ page: String(page), per_page: "25", date_from: String(dateValue("orders-from", 0)), date_to: String(dateValue("orders-to", 4102444799999, true)) });
-    const status = document.getElementById("orders-status").value;
     const search = document.getElementById("orders-search").value.trim();
-    const scope = document.getElementById("orders-scope").value;
+    const scope = "production";
     query.set("scope", scope);
-    if (status) query.set("status", status);
+    query.set("status", "paid");
     if (search) query.set("search", search);
     try {
       const response = await core.request(`/orders?${query}`);
@@ -33,7 +31,7 @@
       if (requestVersion !== version) return;
       if (data.scope !== scope || !Number.isFinite(data.totals?.net_revenue)) throw Error("Het omzetoverzicht is tijdelijk niet beschikbaar.");
       renderTotals(data.totals);
-      render(items(data));
+      render(items(data).filter(order => order.payment_status === "paid"));
       renderPagination(data);
     } catch (error) { if (requestVersion === version) showError(error.message); }
   }
@@ -48,7 +46,7 @@
 
   function render(orders) {
     const target = document.getElementById("orders-content");
-    if (!orders.length) { target.className = "empty-state"; target.innerHTML = "<strong>Geen orders gevonden</strong><span>Pas de filters aan of controleer later opnieuw.</span>"; return; }
+    if (!orders.length) { target.className = "empty-state"; target.innerHTML = "<strong>Nog geen betaalde orders</strong><span>Nieuwe betalingen verschijnen hier zodra ze zijn bevestigd.</span>"; return; }
     target.className = "table-wrap";
     target.innerHTML = `<table class="data-table"><thead><tr><th>Order</th><th>Klant</th><th>Hotel & deal</th><th>Verblijf</th><th>Bedrag</th><th>Status</th><th>Voucher</th></tr></thead><tbody>${orders.map(row).join("")}</tbody></table>`;
   }
