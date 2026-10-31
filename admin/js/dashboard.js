@@ -15,9 +15,9 @@
         core.request("/deals?status=pending_approval&page=1&per_page=6"),
         window.AdminOfferData.all("/deals"),
         window.AdminOfferData.all("/hotels"),
-        core.request("/analytics/growth"),
-        core.request(`/orders?page=1&per_page=5&status=paid&date_from=${startToday.getTime()}&date_to=${endToday.getTime()}`),
-        core.request("/orders?page=1&per_page=5&status=refunded&date_from=0&date_to=4102444799999")
+        core.request("/orders?scope=production&page=1&per_page=1&date_from=0&date_to=4102444799999"),
+        core.request(`/orders?page=1&scope=production&per_page=5&status=paid&date_from=${startToday.getTime()}&date_to=${endToday.getTime()}`),
+        core.request("/orders?page=1&scope=production&per_page=5&status=refunded&date_from=0&date_to=4102444799999")
       ]);
       const [dashboard, pending, deals, hotels, growth, paidToday, refunds] = results.map((result) => result.status === "fulfilled" ? result.value : null);
       renderKpis(dashboard, pending, deals, hotels, growth);
@@ -35,12 +35,13 @@
     const activeTotal = deals === null ? "—" : allDeals.filter(window.AdminOfferData.publicEligible).length;
     const pendingTotal = pending === null ? "—" : total(pending);
     const supplierTotal = deals === null ? "—" : allDeals.filter(deal => deal.source === "provider_sync").length;
-    const revenue = findNumber(data, ["total_revenue", "revenue_total", "gross_revenue", "paid_revenue", "revenue"]) || findNumber(growth?.this_month ?? growth, ["total_revenue", "revenue_total", "gross_revenue", "paid_revenue", "revenue", "total"]);
+    const financial = normalize(growth?.totals);
+    const revenue = growth?.scope === "production" && Number.isFinite(financial.net_revenue) ? core.money(financial.net_revenue) : "—";
     const cards = [
+      ["Productieomzet", revenue, "Betaalde orders min terugbetalingen · EUR", "green", "orders.html"],
       ["Actieve partners", hotelTotal, "Partneraccounts · inclusief testaccounts", "", "hotels.html"],
       ["Publiek vrijgegeven", activeTotal, "Actief · test- en leveranciersaanbod uitgesloten", "green", "deals.html?status=active"],
       ["Te beoordelen", pendingTotal, "Partners en leveranciers", "orange", "deals.html?status=pending_approval"],
-      ["Omzet", data === null && growth === null ? "—" : core.money(revenue), "Huidige administratie · kan testdata bevatten", "", "orders.html"],
       ["Leveranciersaanbod", supplierTotal, "Geïmporteerde deals · ook sandbox", "", "suppliers.html#supplier-offers"],
       ["Leveranciersboekingen", "Bekijken", "Nuitée · omgeving en margecontrole", "", "suppliers.html#supplier-bookings"]
     ];
@@ -63,7 +64,7 @@
     const paidItems = responseItems(paidToday), refundItems = responseItems(refunds), activity = activityItems(dashboard);
     const paidTotal = paidToday === null ? "—" : findNumber(normalize(paidToday?.totals), ["total_paid_orders", "paid_orders", "orders"]) || paidItems.length;
     const paidRevenue = findNumber(normalize(paidToday?.totals), ["total_paid_revenue", "paid_revenue", "revenue", "total"]);
-    const host = document.getElementById("admin-page");
+    const host = document.getElementById("dashboard-sales");
     host.insertAdjacentHTML("beforeend", `<section class="dashboard-grid" style="margin-top:20px"><div class="panel"><div class="panel-header"><div><h2>Betaalde orders vandaag</h2><p>${paidTotal} betaling${paidTotal===1?"":"en"} · ${paidToday === null ? "—" : core.money(paidRevenue)}</p></div><a class="text-link" href="orders.html">Alle orders →</a></div>${paidItems.length?`<div class="table-wrap"><table class="data-table"><thead><tr><th>Order</th><th>Klant</th><th>Hotel / deal</th><th>Bedrag</th></tr></thead><tbody>${paidItems.map(orderRow).join("")}</tbody></table></div>`:`<div class="empty-state"><strong>${paidToday === null ? "Betalingsgegevens konden niet worden geladen" : "Nog geen betalingen vandaag"}</strong><span>Nieuwe betaalde orders verschijnen hier automatisch.</span></div>`}</div><aside class="side-stack"><div class="panel quick-card"><span class="eyebrow">Aandachtspunten</span><h3>Refunds</h3><p>${refundItems.length ? `${refundItems.length} recente terugbetaling${refundItems.length===1?"":"en"} gevonden.` : refunds === null ? "Refundgegevens konden niet worden geladen." : "Er zijn momenteel geen recente refunds die aandacht vragen."}</p><a class="primary-button" href="orders.html">Bekijk orders</a></div><div class="panel quick-card"><span class="eyebrow">Recente activiteit</span>${activity.length?`<div class="meta-list">${activity.slice(0,5).map(activityRow).join("")}</div>`:'<p>Er zijn nog geen recente adminacties beschikbaar.</p>'}</div></aside></section>`);
   }
   function orderRow(order) { return `<tr><td><strong>#${core.escapeHtml(order.id)}</strong><br><span>${core.date(order.created_at,true)}</span></td><td>${core.escapeHtml(order.customer_name||order.customer_email||"Onbekende klant")}</td><td><strong>${core.escapeHtml(order.hotel_name||"Onbekend hotel")}</strong><br><span>${core.escapeHtml(order.deal_title||`Deal #${order.deal_id||"—"}`)}</span></td><td><strong>${core.money(order.total_amount)}</strong></td></tr>`; }
@@ -84,3 +85,4 @@
   function total(raw) { const data = window.AdminOfferData.normalize(raw); return Number(data?.itemsTotal ?? data?.pagination?.total_items ?? data?.total_items ?? items(data).length) || 0; }
   function findNumber(value, keys) { if (typeof value === "string") { try { return findNumber(JSON.parse(value), keys); } catch { return 0; } } if (!value || typeof value !== "object") return 0; for (const [key, child] of Object.entries(value)) { if (keys.includes(key) && Number.isFinite(Number(child))) return Number(child); } for (const child of Object.values(value)) { const found = findNumber(child, keys); if (found) return found; } return 0; }
 })();
+

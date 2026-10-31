@@ -1,7 +1,7 @@
 (() => {
   "use strict";
   const core = window.AdminCore;
-  let page = 1;
+  let page = 1, version = 0;
   init();
 
   async function init() {
@@ -10,26 +10,32 @@
       if (!admin) return;
       core.mountShell({ active: "orders", title: "Omzet & orders", subtitle: "Bekijk gerealiseerde omzet en alle bestellingen op het platform." }, admin);
       document.getElementById("orders-filters")?.addEventListener("submit", (event) => { event.preventDefault(); page = 1; load(); });
+      document.getElementById("orders-scope").onchange = () => { page = 1; load(); };
       load();
     } catch (error) { showError(error.message); }
   }
 
   async function load() {
+    const requestVersion = ++version;
     const target = document.getElementById("orders-content");
     target.className = "loading-state";
     target.innerHTML = '<div class="spinner"></div>Orders ophalen…';
     const query = new URLSearchParams({ page: String(page), per_page: "25", date_from: String(dateValue("orders-from", 0)), date_to: String(dateValue("orders-to", 4102444799999, true)) });
-    const status = document.getElementById("orders-status").value || "paid";
+    const status = document.getElementById("orders-status").value;
     const search = document.getElementById("orders-search").value.trim();
-    query.set("status", status);
+    const scope = document.getElementById("orders-scope").value;
+    query.set("scope", scope);
+    if (status) query.set("status", status);
     if (search) query.set("search", search);
     try {
       const response = await core.request(`/orders?${query}`);
       const data = normalize(response);
-      renderTotals(data.totals || {});
+      if (requestVersion !== version) return;
+      if (data.scope !== scope || !Number.isFinite(data.totals?.net_revenue)) throw Error("Het omzetoverzicht is tijdelijk niet beschikbaar.");
+      renderTotals(data.totals);
       render(items(data));
       renderPagination(data);
-    } catch (error) { showError(error.message); }
+    } catch (error) { if (requestVersion === version) showError(error.message); }
   }
 
   function renderTotals(totals) {
@@ -37,7 +43,7 @@
     const revenue = number(totals, ["total_paid_revenue", "paid_revenue", "revenue", "total"]);
     const paid = number(totals, ["total_paid_orders", "paid_orders", "orders"]);
     const refunded = number(totals, ["total_refunded", "refunded_amount", "refunds"]);
-    document.getElementById("orders-totals").innerHTML = [["Administratief betaald totaal", core.money(revenue), "Inclusief aanwezige testdata"],["Betaalde orders", paid, "Inclusief aanwezige testdata"],["Terugbetaald", core.money(refunded), "Refunds"]].map(([label,value,note])=>`<article class="kpi-card"><div class="kpi-top"><span class="kpi-label">${core.escapeHtml(label)}</span></div><strong class="kpi-value">${core.escapeHtml(value)}</strong><span class="kpi-note">${core.escapeHtml(note)}</span></article>`).join("");
+    document.getElementById("orders-totals").innerHTML = [["Omzet na terugbetalingen", core.money(totals.net_revenue), "Ontvangen min terugbetaald · EUR"],["Ontvangen", core.money(revenue), paid + " betaalde orders"],["Terugbetaald", core.money(refunded), "Binnen de selectie"]].map(([label,value,note])=>`<article class="kpi-card"><div class="kpi-top"><span class="kpi-label">${core.escapeHtml(label)}</span></div><strong class="kpi-value">${core.escapeHtml(value)}</strong><span class="kpi-note">${core.escapeHtml(note)}</span></article>`).join("");
   }
 
   function render(orders) {
@@ -63,5 +69,5 @@
   function items(data) { return [data, data?.items, data?.data, data?.data?.items].map(normalizeValue).find(Array.isArray) || []; }
   function number(object, keys) { for (const key of keys) if (Number.isFinite(Number(object?.[key]))) return Number(object[key]); return 0; }
   function dateValue(id, fallback, end=false) { const value=document.getElementById(id)?.value; if(!value)return fallback; return new Date(`${value}T${end?"23:59:59.999":"00:00:00"}`).getTime(); }
-  function showError(message) { const target=document.getElementById("orders-content"); if(target){target.className="error-panel";target.textContent=message;} }
+  function showError(message) { document.getElementById("orders-totals").textContent = "Omzet niet beschikbaar"; document.getElementById("orders-pagination").textContent = ""; const target=document.getElementById("orders-content"); if(target){target.className="error-panel";target.textContent=message;} }
 })();
