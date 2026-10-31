@@ -34,5 +34,10 @@
     if (deal.integration_id && !environment) return false;
     return !deal.integration_status || deal.integration_status === "active";
   }
-  window.AdminOfferData = { normalize, items, all, publicEligible };
+  function isTest(record) {
+    return record?.is_test === true || record?.is_sandbox === true ||
+      [record?.environment, record?.integration_environment, record?.supplier?.environment]
+        .some(value => ["test", "sandbox"].includes(String(value || "").toLowerCase()));
+  }
+  window.AdminOfferData = { normalize, items, all, publicEligible, isTest };
 })();

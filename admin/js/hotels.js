@@ -10,6 +10,7 @@
       if (!admin) return;
       core.mountShell({ active: "hotels", title: "Partners", subtitle: "Eigen hotelpartneraccounts en hun status. Leveranciersaanbod beheer je onder Leveranciers." }, admin);
       document.getElementById("hotels-refresh")?.addEventListener("click", load);
+      document.getElementById("archive-scope").onchange = () => { page = 1; load(); };
       bindCreateHotel();
       load();
       if (new URLSearchParams(location.search).get("action") === "new") openCreateHotel();
@@ -21,7 +22,11 @@
     target.className = "loading-state";
     target.innerHTML = '<div class="spinner"></div>Hotels ophalen…';
     try {
-      const data = await core.request(`/hotels?page=${page}&per_page=20`);
+      const tests = document.getElementById("archive-scope").value === "test";
+      const rows = (await window.AdminOfferData.all("/hotels")).filter(h => window.AdminOfferData.isTest(h) === tests);
+      const pages = Math.max(1, Math.ceil(rows.length / 20));
+      page = Math.min(page, pages);
+      const data = {items: rows.slice((page-1)*20,page*20), pageTotal:pages, itemsTotal:rows.length,curPage:page};
       render(items(data));
       pagination(data);
     } catch (error) { showError(error.message); }

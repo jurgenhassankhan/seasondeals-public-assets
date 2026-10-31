@@ -15,6 +15,7 @@
       form.elements[0].value = params.get("search") || "";
       document.getElementById("status-filter").value = params.get("status") || "";
       document.getElementById("source-filter").value = params.get("source") || "";
+      document.getElementById("archive-scope").onchange = () => { page = 1; load(); };
       form.addEventListener("submit", (event) => { event.preventDefault(); page = 1; updateUrl(); load(); });
       load();
     } catch (error) { showError(error.message); }
@@ -31,14 +32,15 @@
     try {
       const source = document.getElementById("source-filter").value;
       let data;
-      if (source) {
+      {
         query.delete("page"); query.delete("per_page");
         const all = await window.AdminOfferData.all(`/deals?${query}`);
-        const filtered = all.filter(deal => source === "supplier" ? deal.source === "provider_sync" : deal.source !== "provider_sync");
+        const tests = document.getElementById("archive-scope").value === "test";
+        const filtered = all.filter(deal => window.AdminOfferData.isTest(deal) === tests && (!source || (source === "supplier" ? deal.source === "provider_sync" : deal.source !== "provider_sync")));
         const pages = Math.max(1, Math.ceil(filtered.length / 25));
         page = Math.min(page, pages);
         data = {items: filtered.slice((page - 1) * 25, page * 25), itemsTotal: filtered.length, pageTotal: pages, curPage: page};
-      } else { data = await core.request(`/deals?${query}`); }
+      }
       const rows = resolveItems(data);
       // Only enrich the current page when the legacy list omits the supplier hotel.
       // Bound concurrency and cache within this page session; never load all supplier details.

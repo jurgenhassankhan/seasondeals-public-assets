@@ -11,7 +11,7 @@
 <body>
   <main id="admin-page">
     <section class="panel">
-      <div class="panel-header"><div><h2>Aangesloten hotels</h2><p>Bekijk contactgegevens en beheer de toegangsstatus.</p></div><div class="hotel-header-actions"><button id="hotels-refresh" class="secondary-button" type="button">Vernieuwen</button><button id="hotel-create" class="primary-button" type="button">+ Nieuw hotel</button></div></div>
+      <div class="panel-header"><div><h2>Aangesloten hotels</h2><p>Bekijk contactgegevens en beheer de toegangsstatus.</p></div><div class="hotel-header-actions"><label>Registraties <select id="archive-scope"><option value="current">Zonder gemarkeerde tests</option><option value="test">Testarchief</option></select></label><button id="hotels-refresh" class="secondary-button" type="button">Vernieuwen</button><button id="hotel-create" class="primary-button" type="button">+ Nieuw hotel</button></div></div>
       <div id="hotels-content" class="loading-state"><div class="spinner"></div>Hotels ophalen…</div>
       <div id="hotels-pagination"></div>
     </section>
@@ -42,6 +42,6 @@
   </div>
   <script src="js/config.js?v=20260721-1"></script>
   <script src="js/core.js?v=20261030-insights-1"></script>
-  <script src="js/hotels.js?v=20261008-3"></script>
+  <script src="js/offer-data.js?v=20261031-archive"></script><script src="js/hotels.js?v=20261031-archive"></script>
 </body>
 </html>

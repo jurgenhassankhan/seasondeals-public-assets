@@ -21,7 +21,7 @@
       ]);
       const [dashboard, pending, deals, hotels, growth, paidToday, refunds] = results.map((result) => result.status === "fulfilled" ? result.value : null);
       renderKpis(dashboard, pending, deals, hotels, growth);
-      if (pending !== null) renderPending(items(pending));
+      if (deals !== null) renderPending(items(deals).filter(d => d.status === "pending_approval" && !window.AdminOfferData.isTest(d)).slice(0,6));
       else { const target = document.getElementById("pending-content"); target.className = "error-panel"; target.textContent = "De beoordelingswachtrij kon niet worden geladen."; }
       renderOperations(paidToday, refunds, dashboard);
       const failures = results.filter((result) => result.status === "rejected");
@@ -30,19 +30,19 @@
   }
 
   function renderKpis(data, pending, deals, hotels, growth) {
-    const allDeals = items(deals);
-    const hotelTotal = hotels === null ? "—" : items(hotels).filter(hotel => hotel.legal_status === "active").length;
+    const allDeals = items(deals).filter(d => !window.AdminOfferData.isTest(d));
+    const hotelTotal = hotels === null ? "—" : items(hotels).filter(hotel => hotel.legal_status === "active" && !window.AdminOfferData.isTest(hotel)).length;
     const activeTotal = deals === null ? "—" : allDeals.filter(window.AdminOfferData.publicEligible).length;
-    const pendingTotal = pending === null ? "—" : total(pending);
+    const pendingTotal = deals === null ? "—" : allDeals.filter(d => d.status === "pending_approval").length;
     const supplierTotal = deals === null ? "—" : allDeals.filter(deal => deal.source === "provider_sync").length;
     const financial = normalize(growth?.totals);
     const revenue = growth?.scope === "production" && Number.isFinite(financial.net_revenue) ? core.money(financial.net_revenue) : "—";
     const cards = [
       ["Productieomzet", revenue, "Betaalde orders min terugbetalingen · EUR", "green", "orders.html"],
-      ["Actieve partners", hotelTotal, "Partneraccounts · inclusief testaccounts", "", "hotels.html"],
+      ["Actieve partners", hotelTotal, "Zonder gemarkeerde testaccounts", "", "hotels.html"],
       ["Publiek vrijgegeven", activeTotal, "Actief · test- en leveranciersaanbod uitgesloten", "green", "deals.html?status=active"],
       ["Te beoordelen", pendingTotal, "Partners en leveranciers", "orange", "deals.html?status=pending_approval"],
-      ["Leveranciersaanbod", supplierTotal, "Geïmporteerde deals · ook sandbox", "", "suppliers.html#supplier-offers"],
+      ["Leveranciersaanbod", supplierTotal, "Zonder gemarkeerd testaanbod", "", "suppliers.html#supplier-offers"],
       ["Leveranciersboekingen", "Bekijken", "Nuitée · omgeving en margecontrole", "", "suppliers.html#supplier-bookings"]
     ];
     document.getElementById("dashboard-kpis").innerHTML = cards.map(([label, value, note, tone, href]) => `${href ? `<a href="${href}" style="color:inherit;text-decoration:none">` : ""}<article class="kpi-card"${href ? ' style="cursor:pointer"' : ""}><div class="kpi-top"><span class="kpi-label">${core.escapeHtml(label)}</span><span class="kpi-icon ${tone}">${kpiIcon()}</span></div><strong class="kpi-value">${core.escapeHtml(value)}</strong><span class="kpi-note">${core.escapeHtml(note)}${href ? " · Bekijken →" : ""}</span></article>${href ? "</a>" : ""}`).join("");

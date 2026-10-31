@@ -14,6 +14,7 @@
       document.getElementById("supplier-bookings-refresh").addEventListener("click", () => { supplierPage = 1; loadSupplierBookings(); });
       document.getElementById("supplier-bookings-filters").addEventListener("submit", event => { event.preventDefault(); supplierPage = 1; loadSupplierBookings(); });
       document.querySelectorAll("#supplier-bookings-filters select").forEach(select => select.addEventListener("change", () => { supplierPage = 1; loadSupplierBookings(); }));
+      document.getElementById("archive-scope").onchange = renderOffers;
       await Promise.all([loadOffers(), loadSupplierBookings()]);
     } catch (error) { showOfferError(error); }
   }
@@ -32,7 +33,7 @@
   function renderOffers() {
     const status = document.getElementById("supplier-offer-status").value;
     const search = document.getElementById("supplier-offer-search").value.trim().toLocaleLowerCase("nl-NL");
-    const filtered = offers.filter(deal => (!status || deal.status === status) && (!search || `${deal.title || ""} ${deal.hotel_name || ""}`.toLocaleLowerCase("nl-NL").includes(search)));
+    const filtered = offers.filter(deal => window.AdminOfferData.isTest(deal) === (document.getElementById("archive-scope").value === "test") && (!status || deal.status === status) && (!search || `${deal.title || ""} ${deal.hotel_name || ""}`.toLocaleLowerCase("nl-NL").includes(search)));
     const target = document.getElementById("supplier-offers-content");
     if (!filtered.length) { target.className="empty-state"; target.innerHTML="<strong>Geen leveranciersdeals gevonden</strong><span>Pas de filters aan. Nieuwe import volgt via de bestaande gecontroleerde route.</span>"; return; }
     target.className = "table-wrap";
