@@ -19,7 +19,8 @@
   if(!cities.length||cities.length>20)throw Error('Kies 1–20 plaatsen.');
   const data={country:field('country').value.toUpperCase(),cities,periods,adults:Number(field('adults').value),rooms:1,children:[],hotel_name:field('hotel_name').value.trim(),board:field('board').value,cancellation:field('cancellation').value,stars:[...field('stars').selectedOptions].map(x=>Number(x.value)),facilities:[...field('facilities').selectedOptions].map(x=>Number(x.value)),excluded:split(field('excluded').value),pricing:{},target:Number(field('target').value),per_city:Number(field('per_city').value),unique_hotels:field('unique_hotels').checked};
   for(const k of ['min_rating','min_reviews','max_base','max_price'])data[k]=Number(field(k).value||0);
-  for(const k of ['markup_percentage','min_margin_amount','processing_fee','stripe_fee_percentage','stripe_fee_fixed'])data.pricing[k]=Number(field(k).value);
+  for(const k of ['markup_amount','processing_fee','stripe_fee_percentage','stripe_fee_fixed'])data.pricing[k]=Number(field(k).value);
+  data.pricing.mode="fixed";data.pricing.markup_percentage=0;data.pricing.min_margin_amount=0;
   for(const p of periods){const a=Date.parse(p.checkin+'T00:00:00Z'),b=Date.parse(p.checkout+'T00:00:00Z');if(!Number.isFinite(a)||!Number.isFinite(b)||b<=a||b-a>30*86400000)throw Error('Kies periodes van 1–30 nachten.');}
   return data;
  }

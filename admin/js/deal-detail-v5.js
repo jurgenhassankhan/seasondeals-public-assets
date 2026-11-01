@@ -112,10 +112,10 @@ function nuiteeDealContent(mapping, hotelId, contentHotel) {
 // Stripe EUR reserve: https://stripe.com/nl/pricing/local-payment-methods (2026-10-16).
 // Nuitée: last measured sandbox processing fee, not a confirmed production tariff.
 const supplierPricingDefaults = Object.freeze({
-  mode: 'percentage', markup_percentage: 20, markup_amount: 0, override_amount: 0,
-  discount_percentage: 0, min_margin_amount: 20, rounding: 'none',
+  mode: 'fixed', markup_percentage: 0, markup_amount: 14, override_amount: 0,
+  discount_percentage: 0, min_margin_amount: 0, rounding: 'none',
   processing_fee: 2.30, stripe_fee_percentage: 3.15, stripe_fee_fixed: 0.25,
-  calculation_basis: 'costs_included_v2', defaults_version: '20261016-2',
+  calculation_basis: 'costs_included_v2', defaults_version: '20261101-fixed14',
   production_costs_verified: false, cost_status: 'estimated',
   cost_policy: 'owner_approved_estimate_v1',
   cost_evidence: 'Owner-approved estimate 2026-10-16: Nuitée sandbox 2.30 EUR; Stripe EUR card reserve 3.15% + 0.25 EUR; iDEAL reference 0.29 EUR. Account tariffs not verified.',
@@ -134,7 +134,7 @@ function supplierPricingConfig(saved = {}, proposal = false) {
     config.cost_policy = supplierPricingDefaults.cost_policy;
     config.cost_evidence = saved.cost_evidence || supplierPricingDefaults.cost_evidence;
   }
-  if (proposal) config.mode = 'percentage';
+  // Draft proposals retain the configured price mode.
   return config;
 }
 
@@ -333,7 +333,8 @@ function calculateSupplierPrice(base, config) {
     if (supplierError) return '<section class="panel review-card"><h3>Nuitée-gegevens niet beschikbaar</h3><p class="notice">' + core.escapeHtml(supplierError) + '</p><p>Beoordeling wacht totdat de leveranciersgegevens zijn opgehaald.</p></section>';
     const saved = supplierDeal.pricing_config || {};
     const config = supplierPricingConfig(saved, deal.status === "draft" && String(saved.price_status || "").startsWith("proposal_"));
-    const writable = core.canReview(admin) && deal.status === "draft";
+    const writable = core.canReview(admin) && !deal.deleted_at;
+    const contentWritable = writable && deal.status === "draft";
     const numberInput = (key, label, suffix = "€") => `<div class="price-field"><label for="supplier-${key}">${label}</label><div class="price-input-wrap"><input id="supplier-${key}" name="${key}" type="number" min="0" step="0.01" inputmode="decimal" value="${core.escapeHtml(config[key] ?? "")}" placeholder="Nog te bevestigen" ${writable ? "" : "disabled"}><span aria-hidden="true">${suffix}</span></div></div>`;
     return `<section class="panel review-card supplier-price-card"><span class="eyebrow">Nuitée</span><h3>Prijs en marge</h3>
       <div class="price-base"><span>Inkoopprijs (Nuitée)</span><strong>${core.money(supplierDeal.supplier_base_amount)}</strong></div>
@@ -350,13 +351,13 @@ function calculateSupplierPrice(base, config) {
           <p class="price-help">Vooraf ingevulde schattingen, bewerkbaar per deal. Nuitée: €2,30 op basis van onze test. Stripe: 3,15% + €0,25 reserve voor kaartbetalingen; iDEAL is normaal €0,29 bij het standaardtarief en zonder valutaomwisseling. Werkelijke kosten worden achteraf vergeleken.</p>
         </details>
         <details class="price-settings"><summary>Overige instellingen</summary>
-          ${numberInput("discount_percentage","Korting","%")}${numberInput("min_margin_amount","Minimaal overhouden")}
+          ${numberInput("discount_percentage","Korting","%")}
           <label for="supplier-rounding">Afronding omhoog</label><select id="supplier-rounding" name="rounding" ${writable ? "" : "disabled"}>${[["none","Op centen"],["whole","Op hele euro"],["99","Op € …,99"]].map(([value,label])=>`<option value="${value}" ${config.rounding===value?"selected":""}>${label}</option>`).join("")}</select>
         </details>
-        ${writable ? '<button type="submit" class="primary-button">Prijsregels opslaan</button>' : '<p class="price-help">Alleen bewerkbaar bij een conceptdeal door een bevoegde beheerder.</p>'}
+        ${writable ? '<button type="submit" class="primary-button">Prijsregels opslaan</button>' : '<p class="price-help">Alleen bewerkbaar door een bevoegde beheerder.</p>'}
         <p class="price-help">Opslaan wijzigt alleen deze deal. Actuele inkoop en kosten worden bij het boeken opnieuw gecontroleerd.</p>
       </form>
-      ${writable ? supplierContentForm() + '<button id="supplier-submit" class="primary-button" type="button">Indienen ter beoordeling</button>' : core.canReview(admin) ? '<button id="supplier-draft" class="secondary-button" type="button">Terug naar concept</button>' : ""}
+      ${contentWritable ? supplierContentForm() + '<button id="supplier-submit" class="primary-button" type="button">Indienen ter beoordeling</button>' : core.canReview(admin) ? '<button id="supplier-draft" class="secondary-button" type="button">Terug naar concept</button>' : ""}
       <p class="notice">${supplierDeal.environment === "production" ? "Goedkeuren na beoordeling maakt de deal zichtbaar op de website. Boeken blijft tot de livegang gesloten." : "Sandboxgoedkeuring publiceert geen deal."}</p></section>`;
   }
   function supplierContentForm() {
@@ -388,10 +389,11 @@ function calculateSupplierPrice(base, config) {
   function readSupplierPricing() {
     const form = document.getElementById("supplier-pricing");
     const config = {mode: form.elements.mode.value, rounding: form.elements.rounding.value};
-    for (const key of ["markup_percentage","markup_amount","override_amount","discount_percentage","min_margin_amount","processing_fee","stripe_fee_percentage","stripe_fee_fixed"]) {
+    for (const key of ["markup_percentage","markup_amount","override_amount","discount_percentage","processing_fee","stripe_fee_percentage","stripe_fee_fixed"]) {
       const value = form.elements[key].value.trim();
       config[key] = value === "" ? null : Number(value);
     }
+    config.min_margin_amount = 0;
     return config;
   }
   function calculatePreview(config) {
@@ -424,7 +426,7 @@ function calculateSupplierPrice(base, config) {
       button.disabled = true;
       await core.request(`/supplier-deals/${encodeURIComponent(dealId)}/pricing`, {method:"PATCH", body:JSON.stringify({pricing_config})});
       await load();
-      core.toast("Prijsregels opgeslagen; deal blijft concept.");
+      core.toast("Prijsregels opgeslagen.");
     } catch (error) { core.toast(error.message, "error"); }
     finally { if (button?.isConnected) button.disabled = false; }
   }
