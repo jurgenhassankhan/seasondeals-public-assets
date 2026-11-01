@@ -455,6 +455,7 @@ function dealAmenityDetail(label, detail) {
     book.disabled=true;book.hidden=true;book.style.display='none';
     const ui=document.createElement('section');ui.className='sd-week-calendar';
     ui.innerHTML=`<h2>Kies je verblijf</h2><p class="sd-week-room">${escapeHtml(deal.room)} · ${policy.guests} personen · ${escapeHtml(deal.board)}</p>
+      <div class="sd-stay-dates"><label class="sd-arrival-label">Inchecken</label><label class="sd-departure-label">Uitchecken</label></div><p class="sd-date-help">Kies je aankomst- en vertrekdatum. Meerdere nachten? Kies een latere uitcheckdatum.</p>
       <label for="sd-nights">Aantal nachten</label><div class="sd-night-stepper"><button type="button" data-step="-1" aria-label="Een nacht minder">−</button><input id="sd-nights" type="number" min="1" step="1" value="1" inputmode="numeric"><button type="button" data-step="1" aria-label="Een nacht meer">+</button></div>
       <label class="sd-week-jump">Bekijk datums vanaf<input id="sd-week-start" type="date" min="${policy.start}" value="${policy.start}"></label>
       <p>Kies een aankomstdag</p><div class="sd-week-nav"><button type="button" data-week="-1" aria-label="Vorige week">‹</button><strong class="sd-week-label"></strong><button type="button" data-week="1" aria-label="Volgende week">›</button></div>
@@ -463,6 +464,7 @@ function dealAmenityDetail(label, detail) {
       <small class="sd-week-basis"></small><p class="sd-week-status" role="status" aria-live="polite"></p><button class="sd-week-retry" type="button" hidden>Controleer resterende dagen</button>
       <div class="sd-week-selection" hidden></div><button type="button" id="sd-flex-price-check" class="button button-primary booking-submit" hidden>Controleer prijs en beschikbaarheid</button><div class="sd-week-result" role="status" aria-live="polite"></div>`;
     form.prepend(ui);
+    ui.querySelector(".sd-arrival-label").append(arrival);ui.querySelector(".sd-departure-label").append(departure);
     const nightsInput=ui.querySelector('#sd-nights'),startInput=ui.querySelector('#sd-week-start'),days=ui.querySelector('.sd-week-days'),label=ui.querySelector('.sd-week-label'),status=ui.querySelector('.sd-week-status'),retry=ui.querySelector('.sd-week-retry'),selection=ui.querySelector('.sd-week-selection'),check=ui.querySelector('#sd-flex-price-check'),result=ui.querySelector('.sd-week-result');
     const endpoint=CONFIG.dealsEndpoint.replace(/\/deals$/,'/supplier/production/stay-options');
     const dateAdd=(day,n)=>{const d=new Date(Date.parse(day+'T00:00:00Z')+n*86400000);return Number.isFinite(d.getTime())?d.toISOString().slice(0,10):'';};
@@ -510,19 +512,27 @@ function dealAmenityDetail(label, detail) {
       clearTimeout(expiry);expiry=setTimeout(()=>{if(id===generation&&ui.isConnected){renderDays();retry.hidden=false;status.textContent='De kalendercontrole is verlopen. Kies een dag of controleer opnieuw.';}},61000);
     }
     function changeWeek(){
-      if(checkoutBusy)return;generation++;loading=false;clearSelection();clearTimeout(debounce);
+      if(checkoutBusy)return;const previous=selected;generation++;loading=false;clearSelection();clearTimeout(debounce);
       const n=Number(nightsInput.value),d=startInput.value;
       if(!Number.isSafeInteger(n)||n<1||!validStayDay(d)||d<policy.start||!validStayDay(dateAdd(d,n))||!validStayDay(dateAdd(d,6))){days.innerHTML='';status.textContent='Kies een geldig aantal nachten en een datum vanaf vandaag.';retry.hidden=true;return;}
-      nights=n;start=d;renderDays();debounce=setTimeout(loadWeek,450);
+      nights=n;start=d;renderDays();if(previous)selectDay(previous);debounce=setTimeout(loadWeek,450);
     }
     nightsInput.addEventListener('input',changeWeek);startInput.addEventListener('change',changeWeek);
     ui.querySelectorAll('[data-step]').forEach(b=>b.addEventListener('click',()=>{if(checkoutBusy)return;nightsInput.value=String(Math.max(1,Number(nightsInput.value||1)+Number(b.dataset.step)));changeWeek();}));
     ui.querySelectorAll('[data-week]').forEach(b=>b.addEventListener('click',()=>{if(checkoutBusy)return;const d=dateAdd(start,7*Number(b.dataset.week));startInput.value=d<policy.start?policy.start:d;changeWeek();}));
     retry.addEventListener('click',()=>{if(checkoutBusy||loading)return;if(Date.now()<retryAt){status.textContent=`Probeer opnieuw over ${Math.ceil((retryAt-Date.now())/1000)} seconden. Je kunt wel een dag kiezen.`;return;}loadWeek();});
-    days.addEventListener('click',e=>{const b=e.target.closest('[data-day]');if(!b||b.disabled||checkoutBusy)return;generation++;loading=false;clearTimeout(debounce);clearQuote();selected=b.dataset.day;arrival.value=selected;departure.value=dateAdd(selected,nights);const r=entry(selected),o=r?.status==='available'?r.options[0]:null;
+    function selectDay(day){generation++;loading=false;clearTimeout(debounce);clearQuote();selected=day;arrival.value=selected;departure.min=dateAdd(selected,1);departure.value=dateAdd(selected,nights);const r=entry(selected),o=r?.status==='available'?r.options[0]:null;
       selection.hidden=false;selection.innerHTML=`<h3>Jouw verblijf</h3><div class="sd-week-summary-dates"><span>Inchecken<strong>${dateLabel(selected)}</strong></span><span>Uitchecken<strong>${dateLabel(departure.value)}</strong></span></div><div class="sd-week-summary-total"><span>${nights} ${nights===1?'nacht':'nachten'} · ${policy.guests} personen</span><strong>${o?escapeHtml(cash(o.price)):'Prijs controleren'}</strong></div>`+(o?.local_fees||[]).map(f=>`<p>${escapeHtml(f.description)}: ${escapeHtml(cash(f.amount))} ter plaatse</p>`).join('');
       check.hidden=false;check.disabled=false;check.textContent='Controleer prijs en beschikbaarheid';status.textContent='Controleer je keuze voor de actuele prijs en voorwaarden.';renderDays();
-    });
+    }
+    days.addEventListener('click',e=>{const b=e.target.closest('[data-day]');if(!b||b.disabled||checkoutBusy)return;selectDay(b.dataset.day);});
+    function changeDates(){
+      if(checkoutBusy)return;generation++;loading=false;clearTimeout(debounce);clearQuote();selected='';selection.hidden=true;check.hidden=true;check.disabled=false;
+      const a=arrival.value,b=departure.value;departure.min=validStayDay(a)?dateAdd(a,1):policy.start;
+      if(!validStayDay(a)||a<policy.start||!validStayDay(b)||b<=a){status.textContent='Kies een incheckdatum en een uitcheckdatum die daarna ligt.';return;}
+      nights=Math.round((Date.parse(b+'T00:00:00Z')-Date.parse(a+'T00:00:00Z'))/86400000);nightsInput.value=String(nights);start=a;startInput.value=a;selectDay(a);debounce=setTimeout(loadWeek,450);
+    }
+    arrival.addEventListener('input',changeDates);departure.addEventListener('input',changeDates);
     check.addEventListener('click',async()=>{
       if(checkoutBusy||!selected)return;generation++;loading=false;clearQuote();const id=quoteGeneration,d=selected;check.disabled=true;result.textContent='Prijs ophalen… Even geduld a.u.b.';
       try{const r=await request(d,false);if(id!==quoteGeneration||!ui.isConnected)return;
