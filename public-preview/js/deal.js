@@ -473,6 +473,9 @@ function dealAmenityDetail(label, detail) {
     let generation=0,quoteGeneration=0,nights=1,start=policy.start,selected='',chosen=null,loading=false,retryAt=0,debounce,expiry,retryTimer,retries=0;
     const cache=new Map(),failures=new Set(),pendingDays=new Set();
     const key=d=>[d,dateAdd(d,nights),policy.guests].join('|');
+    for(const r of (Array.isArray(policy.calendar_cache)?policy.calendar_cache:[]).slice(-28)){
+      if(validStayDay(r?.checkin)&&validStayDay(r?.checkout)&&r.guests===policy.guests&&r.can_book===false&&validStayResult(r,Number(deal.id),r.checkin,r.checkout,policy.guests))cache.set([r.checkin,r.checkout,r.guests].join('|'),r);
+    }
     const entry=d=>{const r=cache.get(key(d));return r||null;};
     function clearQuote(){quoteGeneration++;chosen=null;clearTimeout(expiry);book.hidden=true;book.style.display='none';book.disabled=true;result.textContent='';showBookingMessage('','info');}
     function clearSelection(){clearQuote();selected='';arrival.value='';departure.value='';selection.hidden=true;check.hidden=true;check.disabled=false;}
