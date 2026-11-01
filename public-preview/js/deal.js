@@ -495,8 +495,8 @@ function dealAmenityDetail(label, detail) {
     }
     async function loadWeek(){
       const id=++generation;loading=true;retry.hidden=true;status.textContent='Beschikbare dagen en prijzen ophalen…';
-      let waiting=false;
-      for(let i=0;i<7;i++){
+      let waiting=false,nextDay=0;
+      async function worker(){while(nextDay<7){const i=nextDay++;
         if(id!==generation||checkoutBusy||!ui.isConnected||document.hidden)break;
         const d=dateAdd(start,i);if(entry(d)&&['available','unavailable'].includes(entry(d).status))continue;
         if(Date.now()<retryAt){waiting=true;break;}
@@ -505,7 +505,8 @@ function dealAmenityDetail(label, detail) {
           if(r.retry_after){retryAt=Date.now()+Math.min(60,r.retry_after)*1000;waiting=true;break;}
         }catch{if(id!==generation)return;waiting=true;}
         renderDays();
-      }
+      }}
+      await Promise.all([worker(),worker()]);
       if(id!==generation||!ui.isConnected)return;
       loading=false;renderDays();const pending=Array.from({length:7},(_,i)=>entry(dateAdd(start,i))).some(r=>!r||!['available','unavailable'].includes(r.status));
       retry.hidden=!pending;status.textContent=pending?(waiting?'Nog niet alle dagen zijn bevestigd. Je kunt een dag kiezen of de resterende dagen later controleren.':'Kies een dag om deze te controleren.'):'Kies een groene dag. Prijzen en beschikbaarheid kunnen wijzigen.';
@@ -529,12 +530,23 @@ function dealAmenityDetail(label, detail) {
     function changeDates(){
       if(checkoutBusy)return;generation++;loading=false;clearTimeout(debounce);clearQuote();selected='';selection.hidden=true;check.hidden=true;check.disabled=false;
       const a=arrival.value,b=departure.value;departure.min=validStayDay(a)?dateAdd(a,1):policy.start;
+      if(validStayDay(a)&&a>=policy.start&&validStayDay(dateAdd(a,6))){start=a;startInput.value=a;renderDays();}
       if(!validStayDay(a)||a<policy.start||!validStayDay(b)||b<=a){status.textContent='Kies een incheckdatum en een uitcheckdatum die daarna ligt.';return;}
       nights=Math.round((Date.parse(b+'T00:00:00Z')-Date.parse(a+'T00:00:00Z'))/86400000);nightsInput.value=String(nights);start=a;startInput.value=a;selectDay(a);debounce=setTimeout(loadWeek,450);
     }
-    arrival.addEventListener('input',changeDates);departure.addEventListener('input',changeDates);
+    function changeArrival(){
+      if(checkoutBusy)return;
+      const a=arrival.value;
+      if(validStayDay(a)&&a>=policy.start){
+        if(selected===a&&departure.value===dateAdd(a,nights))return;
+        departure.value=dateAdd(a,nights);
+      }
+      changeDates();
+    }
+    function changeDeparture(){if(selected===arrival.value&&departure.value===dateAdd(selected,nights))return;changeDates();}
+    for(const event of ['input','change']){arrival.addEventListener(event,changeArrival);departure.addEventListener(event,changeDeparture);}
     check.addEventListener('click',async()=>{
-      if(checkoutBusy||!selected)return;generation++;loading=false;clearQuote();const id=quoteGeneration,d=selected;check.disabled=true;result.textContent='Prijs ophalen… Even geduld a.u.b.';
+      if(checkoutBusy||!selected)return;generation++;loading=false;clearTimeout(debounce);clearQuote();const id=quoteGeneration,d=selected;check.disabled=true;result.textContent='Prijs ophalen… Even geduld a.u.b.';
       try{const r=await request(d,false);if(id!==quoteGeneration||!ui.isConnected)return;
         if(r.status!=='available'){result.textContent=r.status==='unavailable'?'Geen passend aanbod voor deze datums. Kies een andere dag.':r.retry_after?`Probeer de controle over ${r.retry_after} seconden opnieuw.`:'De controle is niet gelukt. Probeer opnieuw.';return;}
         chosen=r;const o=r.options[0];cache.set(key(d),r);renderDays();selection.querySelector('.sd-week-summary-total strong').textContent=cash(o.price);
