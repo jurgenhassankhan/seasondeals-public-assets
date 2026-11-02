@@ -39,7 +39,7 @@
  function fingerprint(deal,supplier){
   // A change of room, occupancy, pricing or stay policy invalidates old observations.
   const m=supplier.supplier_mapping||{};
-  const raw=JSON.stringify([deal.id,deal.price,deal.updated_at,supplier.provider,supplier.environment,supplier.supplier_hotel_id,supplier.pricing_config,m.hotel?.id,m.request,m.offer,m.stay_policy]);
+  const raw=JSON.stringify([deal.id,deal.price,supplier.provider,supplier.environment,supplier.supplier_hotel_id,supplier.pricing_config,m.hotel?.id,m.request,m.offer,m.stay_policy]);
   let h=2166136261;for(let i=0;i<raw.length;i++)h=Math.imul(h^raw.charCodeAt(i),16777619);
   return (h>>>0).toString(16);
  }
