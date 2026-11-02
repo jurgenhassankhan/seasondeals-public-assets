@@ -83,38 +83,22 @@
 
   function updateDealStructuredData(publicDeals) {
     const path = window.location.pathname.replace(/\/+$/, "") || "/";
-    if (path !== "/" || !Array.isArray(publicDeals) || !publicDeals.length) return;
+    if (path !== "/" || !Array.isArray(publicDeals)) return;
 
+    // The homepage is an overview, not a single purchasable product.
+    // Describe its links without inventing prices, reviews or shipping policies.
     const items = publicDeals.slice(0, 20).map((deal, index) => {
-      const price = getPositiveNumber(deal.deal_price, deal.price);
-      const remaining = getRemaining(deal);
-      const image = getImage(deal);
-      const url = new URL(CONFIG.dealPage, window.location.origin);
-      url.searchParams.set("id", deal.id);
-      url.searchParams.set("view", "inventory-v2");
-
-      const product = {
-        "@type": "Product",
+      const detailPath = typeof deal.seo_url === "string" && /^\/deals\/[a-z0-9-]+$/.test(deal.seo_url)
+        ? deal.seo_url
+        : `${CONFIG.dealPage}?id=${encodeURIComponent(deal.id)}&view=inventory-v2`;
+      const page = {
+        "@type": "WebPage",
         name: text(deal.title || deal.name, "SeasonDeals deal"),
-        url: url.href
+        url: new URL(detailPath, window.location.origin).href
       };
-
-      if (image) product.image = [image];
-      if (!deal.stay_policy?.enabled && price > 0 && (deal.source !== "provider_sync" || (deal.price_is_current === true && deal.booking_enabled === true))) {
-        product.offers = {
-          "@type": "Offer",
-          priceCurrency: CONFIG.currency,
-          price: String(price),
-          url: url.href,
-          availability: remaining === 0 ? "https://schema.org/SoldOut" : "https://schema.org/InStock"
-        };
-      }
-
-      return {
-        "@type": "ListItem",
-        position: index + 1,
-        item: product
-      };
+      const image = getImage(deal);
+      if (image) page.image = [image];
+      return { "@type": "ListItem", position: index + 1, item: page };
     });
 
     setStructuredData("seasondeals-deals-schema", {
