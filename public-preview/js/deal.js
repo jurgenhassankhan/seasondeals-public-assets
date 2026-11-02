@@ -455,7 +455,8 @@ function dealAmenityDetail(label, detail) {
     book.disabled=true;book.hidden=true;book.style.display='none';
     const ui=document.createElement('section');ui.className='sd-week-calendar';
     ui.innerHTML=`<h2>Kies je verblijf</h2><p class="sd-week-room">${escapeHtml(deal.room)} · ${policy.guests} personen · ${escapeHtml(deal.board)}</p>
-      <div class="sd-stay-dates"><label class="sd-arrival-label">Inchecken</label><label class="sd-departure-label">Uitchecken</label></div><p class="sd-date-help">Kies je aankomst- en vertrekdatum. Meerdere nachten? Kies een latere uitcheckdatum.</p>
+      <section class="sd-quick-stays" hidden aria-label="Snel een verblijf kiezen"><h3>Snel een verblijf kiezen</h3><p class="sd-quick-intro">Recent gecontroleerde opties</p><div class="sd-quick-list"></div><small>Bij selectie controleren we de actuele prijs en beschikbaarheid opnieuw. Eventuele lokale kosten staan bij de optie.</small></section>
+      <h3 class="sd-other-dates" hidden>Liever andere datums?</h3><div class="sd-stay-dates"><label class="sd-arrival-label">Inchecken</label><label class="sd-departure-label">Uitchecken</label></div><p class="sd-date-help">Kies je aankomst- en vertrekdatum. Meerdere nachten? Kies een latere uitcheckdatum.</p>
       <label for="sd-nights">Aantal nachten</label><div class="sd-night-stepper"><button type="button" data-step="-1" aria-label="Een nacht minder">−</button><input id="sd-nights" type="number" min="1" step="1" value="1" inputmode="numeric"><button type="button" data-step="1" aria-label="Een nacht meer">+</button></div>
       <label class="sd-week-jump">Bekijk datums vanaf<input id="sd-week-start" type="date" min="${policy.start}" value="${policy.start}"></label>
       <p>Kies een aankomstdag</p><div class="sd-week-nav"><button type="button" data-week="-1" aria-label="Vorige week">‹</button><strong class="sd-week-label"></strong><button type="button" data-week="1" aria-label="Volgende week">›</button></div>
@@ -477,9 +478,33 @@ function dealAmenityDetail(label, detail) {
       if(validStayDay(r?.checkin)&&validStayDay(r?.checkout)&&r.guests===policy.guests&&r.can_book===false&&validStayResult(r,Number(deal.id),r.checkin,r.checkout,policy.guests))cache.set([r.checkin,r.checkout,r.guests].join('|'),r);
     }
     const entry=d=>{const r=cache.get(key(d));return r||null;};
+    const quick=ui.querySelector('.sd-quick-stays'),quickList=ui.querySelector('.sd-quick-list');
+    let quickSignature='',quickTimer;
+    function quickOptions(){
+      const now=Date.now();
+      return Array.from(cache.values()).filter(r=>[33,36].includes(Number(deal.id))&&r.status==='available'&&r.checkin>=policy.start&&r.checkout>r.checkin&&r.guests===policy.guests&&Number.isFinite(r.options?.[0]?.price)&&r.options[0].price>0&&Array.isArray(r.options[0].local_fees)&&Number.isFinite(r.price_checked_at||r.checked_at)&&(r.price_checked_at||r.checked_at)<=now&&now-(r.price_checked_at||r.checked_at)<600000)
+        .sort((a,b)=>a.checkin.localeCompare(b.checkin)||a.checkout.localeCompare(b.checkout)).slice(0,3);
+    }
+    function renderQuickStays(){
+      clearTimeout(quickTimer);const options=quickOptions();
+      quick.hidden=!options.length;ui.querySelector('.sd-other-dates').hidden=!options.length;
+      const signature=JSON.stringify(options.map(r=>[r.checkin,r.checkout,r.options[0],selected===r.checkin&&departure.value===r.checkout,checkoutBusy]));
+      if(signature!==quickSignature){quickSignature=signature;quickList.innerHTML=options.map(r=>{const o=r.options[0],count=Math.round((Date.parse(r.checkout)-Date.parse(r.checkin))/86400000),active=selected===r.checkin&&departure.value===r.checkout;
+        return `<button type="button" class="sd-quick-option ${active?'is-selected':''}" data-quick-arrival="${r.checkin}" data-quick-departure="${r.checkout}" aria-pressed="${active}" ${checkoutBusy?'disabled':''}><span><strong>${dateLabel(r.checkin)} – ${dateLabel(r.checkout)}</strong><small>${count} ${count===1?'nacht':'nachten'} · ${policy.guests} personen</small>${o.local_fees.map(f=>`<small>${escapeHtml(f.description)}: ${escapeHtml(cash(f.amount))} ter plaatse</small>`).join('')}</span><span class="sd-quick-price"><strong>${escapeHtml(cash(o.price))}</strong><small>totaal</small></span><span aria-hidden="true">${active?'✓':'→'}</span></button>`;
+      }).join('');}
+      if(options.length)quickTimer=setTimeout(()=>{if(ui.isConnected)renderQuickStays();},Math.max(100,Math.min(...options.map(r=>(r.price_checked_at||r.checked_at)+600000-Date.now()))+25));
+    }
+    quickList.addEventListener('click',e=>{
+      const button=e.target.closest('[data-quick-arrival]');if(!button||button.disabled||checkoutBusy)return;
+      const r=quickOptions().find(r=>r.checkin===button.dataset.quickArrival&&r.checkout===button.dataset.quickDeparture);
+      if(!r){renderQuickStays();return;}
+      nights=Math.round((Date.parse(r.checkout)-Date.parse(r.checkin))/86400000);nightsInput.value=String(nights);start=r.checkin;startInput.value=start;
+      selectDay(r.checkin);check.click();
+    });
     function clearQuote(){quoteGeneration++;chosen=null;clearTimeout(expiry);book.hidden=true;book.style.display='none';book.disabled=true;result.textContent='';showBookingMessage('','info');}
     function clearSelection(){clearQuote();selected='';arrival.value='';departure.value='';selection.hidden=true;check.hidden=true;check.disabled=false;}
     function renderDays(){
+      renderQuickStays();
       label.textContent=dateLabel(start)+' – '+dateLabel(dateAdd(start,6));
       ui.querySelector('[data-week="-1"]').disabled=start<=policy.start||checkoutBusy;
       ui.querySelector('[data-step="-1"]').disabled=nights<=1||checkoutBusy;
@@ -781,6 +806,7 @@ function checkoutDisplayedTerms(deal) {
   function showToast(value){const toast=document.getElementById("preview-toast");if(!toast)return;toast.textContent=value;toast.classList.add("is-visible");clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>toast.classList.remove("is-visible"),3500);}
   function showError(title,message){container.innerHTML=`<section class="detail-error"><span>!</span><h1>${escapeHtml(title)}</h1><p>${escapeHtml(message)}</p><a class="button button-primary" href="${escapeAttribute(CONFIG.homePage)}#deals">Terug naar alle deals <span>→</span></a></section>`;}
 })();
+
 
 
 
