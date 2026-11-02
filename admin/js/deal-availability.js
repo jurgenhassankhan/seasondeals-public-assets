@@ -66,7 +66,7 @@
   const core=window.AdminCore,esc=core.escapeHtml,guests=supplier.supplier_mapping?.request?.occupancies?.[0]?.adults;
   const identity=fingerprint(deal,supplier),storageKey='sd-availability-overview-v1-'+deal.id;
   const box=document.createElement('section');box.id='availability-overview';box.className='panel review-card';
-  box.innerHTML='<h3>Beschikbaarheid komende 45 dagen</h3><p>Informatie voor jouw keuze tussen flexibel en vast verblijf. Je past de deal zelf aan.</p><label for="availability-overview-nights">Aantal nachten</label><select id="availability-overview-nights">'+Array.from({length:30},(_,i)=>`<option value="${i+1}">${i+1} ${i?'nachten':'nacht'}</option>`).join('')+'</select><p data-period></p><div data-summary role="status" aria-live="polite"></div><p data-progress></p><button type="button" class="secondary-button" data-start>Controleer 45 dagen</button> <button type="button" class="secondary-button" data-stop hidden>Stop controle</button><p data-storage>Momentopname in deze browser, maximaal 24 uur bewaard. Geen automatische achtergrondcontrole. Beschikbaarheid kan wijzigen.</p><details><summary>Bekijk datums en prijsvoorstellen</summary><p>Voor dezelfde kamer en bezetting. Indicatieve totaalprijs per verblijf volgens het standaardprijsvoorstel van de controle; kan afwijken van je ingestelde verkoopprijs. Controleer de definitieve prijs en lokale kosten voordat je de deal aanpast.</p><div data-rows style="overflow:auto;max-height:420px"></div></details>';
+  box.innerHTML='<h3>Beschikbaarheid komende 45 dagen</h3><p>Informatie voor jouw keuze tussen flexibel en vast verblijf. Je past de deal zelf aan.</p><label for="availability-overview-nights">Aantal nachten</label><select id="availability-overview-nights">'+Array.from({length:30},(_,i)=>`<option value="${i+1}">${i+1} ${i?'nachten':'nacht'}</option>`).join('')+'</select><p data-period></p><div data-summary role="status" aria-live="polite"></div><p data-progress></p><button type="button" class="secondary-button" data-start>Controleer 45 dagen</button> <button type="button" class="secondary-button" data-stop hidden>Stop controle</button><button type="button" class="secondary-button" data-reset hidden>Nieuwe volledige controle</button><p data-storage>Momentopname in deze browser, maximaal 24 uur bewaard. Geen automatische achtergrondcontrole. Beschikbaarheid kan wijzigen.</p><details><summary>Bekijk datums en prijsvoorstellen</summary><p>Voor dezelfde kamer en bezetting. Indicatieve totaalprijs per verblijf volgens het standaardprijsvoorstel van de controle; kan afwijken van je ingestelde verkoopprijs. Controleer de definitieve prijs en lokale kosten voordat je de deal aanpast.</p><div data-rows style="overflow:auto;max-height:420px"></div></details>';
   aside.prepend(box);
   const select=box.querySelector('select'),out=box.querySelector('[data-summary]'),progress=box.querySelector('[data-progress]'),list=box.querySelector('[data-rows]'),startButton=box.querySelector('[data-start]'),stopButton=box.querySelector('[data-stop]');
   let start=today(),nights=1,rows=dates(start,nights),running=false,stopped=false,errors=0,message='',storageOk=true;
@@ -86,7 +86,8 @@
     (times.length?`<p>Gecontroleerd tussen ${esc(core.date(Math.min(...times),true))} en ${esc(core.date(Math.max(...times),true))}.</p>`:'');
    progress.textContent=running?`Nuitée controleren: ${checked}/45 datums. Dit kan enkele minuten duren. ${message}`:message||'Klik op Controleer 45 dagen om het aanbod op te halen.';
    startButton.disabled=running;select.disabled=running;stopButton.hidden=!running;
-   startButton.textContent=checked?'Opnieuw controleren':'Controleer 45 dagen';
+   startButton.textContent=checked&&s.unknown?'Controle hervatten':checked?'Opnieuw controleren':'Controleer 45 dagen';
+   box.querySelector('[data-reset]').hidden=running||!checked;
    box.querySelector('[data-storage]').textContent=storageOk?'Momentopname in deze browser, maximaal 24 uur bewaard. Geen automatische achtergrondcontrole. Beschikbaarheid kan wijzigen.':'Opslaan in deze browser niet mogelijk. Resultaten blijven zichtbaar zolang deze pagina openstaat.';
    const labels={available:'Beschikbaar',unavailable:'Geen passend aanbod',unknown:'Controle niet gelukt',unchecked:'Nog niet gecontroleerd'};
    list.innerHTML='<table><thead><tr><th>Aankomst / vertrek</th><th>Uitkomst / voorstel</th></tr></thead><tbody>'+rows.map(r=>`<tr><td>${esc(r.checkin)}<br>${esc(r.checkout)}</td><td>${labels[r.status]}${r.status==='available'?'<br>'+esc(core.money(r.proposal_price)):''}</td></tr>`).join('')+'</tbody></table>';
@@ -95,13 +96,18 @@
   stopButton.addEventListener('click',()=>{message='Controle gestopt. Niet afgeronde datums blijven onbekend.';cancel();});
   select.addEventListener('change',()=>{nights=Number(select.value);read();message='';render();});
   window.addEventListener('pagehide',cancel,{once:true});
+  box.querySelector('[data-reset]').addEventListener('click',()=>{if(running)return;start=today();rows=dates(start,nights);message='Klaar voor een nieuwe volledige controle.';save();render();});
   startButton.addEventListener('click',async()=>{
    if(running)return;
-   start=today();rows=dates(start,nights);running=true;stopped=false;errors=0;message='';save();render();
+   const current=today();
+   if(start!==current||!summary(rows).unknown||rows.some(r=>r.checked_at&&Date.now()-r.checked_at>=MAX_AGE)){start=current;rows=dates(start,nights);}
+   running=true;stopped=false;errors=0;message='';save();render();
+   // Finish unqueried dates first; already confirmed observations survive a paused scan.
+   const pending=rows.map((r,i)=>({r,i})).filter(x=>['unchecked','unknown'].includes(x.r.status)).sort((a,b)=>(a.r.status==='unknown')-(b.r.status==='unknown')).map(x=>x.i);
    let cursor=0;
    async function worker(){
-    while(!stopped&&box.isConnected&&cursor<DAYS){
-     const index=cursor++,row=rows[index],controller=new AbortController();controllers.add(controller);
+    while(!stopped&&box.isConnected&&cursor<pending.length){
+     const index=pending[cursor++],row=rows[index],controller=new AbortController();controllers.add(controller);
      const timer=setTimeout(()=>controller.abort(),45000);
      try{
       const p=await core.request(`/supplier-deals/${encodeURIComponent(deal.id)}/stay-preview`,{method:'POST',body:JSON.stringify({deal_id:Number(deal.id),checkin:row.checkin,checkout:row.checkout}),signal:controller.signal});
