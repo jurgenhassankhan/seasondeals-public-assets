@@ -307,13 +307,15 @@ function dealAmenityDetail(label, detail) {
       recordBookingJourney(journey,'redirect',request);
       window.location.href = checkoutUrl;
     } catch (error) {
+      if (error.quoteUnconfirmed) { failureCode = "CHECKOUT_QUOTE_UNCONFIRMED"; failureStatus = 400; }
       recordBookingJourney(journey,error.bookingStage||(failureCode?'failed':'changed'),journeyRequest,failureCode,failureStatus);
       reportCheckoutError(failureCode, failureStatus);
       console.error("SeasonDeals checkout failed:", failureCode || "offer changed");
       showBookingMessage(error.customerMessage || "Boeken lukt op dit moment niet. Probeer het later opnieuw of neem contact op met SeasonDeals.", "error");
       checkoutBusy = false;
       setFlexibleBusy(false);
-      button.disabled = false; button.innerHTML = "Bekijk beschikbaarheid & boek <span>→</span>";
+      button.disabled = false; button.innerHTML = mottoDecember ? 'Verder naar betalen <span>→</span>' : 'Bekijk beschikbaarheid & boek <span>→</span>';
+      if (error.quoteUnconfirmed) button.form?.dispatchEvent(new Event('sd-quote-unconfirmed'));
     }
   }
 
@@ -627,6 +629,11 @@ function dealAmenityDetail(label, detail) {
     form.addEventListener('submit',e=>{if(!chosen||chosen.checkin!==arrival.value||chosen.checkout!==departure.value||chosen.valid_until<=Date.now()){e.preventDefault();e.stopImmediatePropagation();clearQuote();check.hidden=false;result.textContent='Controleer eerst de actuele prijs voor je gekozen verblijf.';}},true);
     renderDays();
     if (mottoDecember) {
+      form.addEventListener('sd-quote-unconfirmed', () => {
+        clearQuote();
+        check.hidden=false; check.disabled=false;
+        result.textContent='Controleer de kamer en de prijs opnieuw.';
+      });
       for (const node of ui.children) {
         if (![selection,check,result].includes(node)) node.style.display='none';
       }
@@ -715,7 +722,7 @@ function checkoutDisplayedTerms(deal) {
   // Keep the old key on every uncertain response. Only the server can authorize a
   // deterministic successor after Stripe has confirmed the old session expired.
   async function recoverSupplierCheckout(request, hotelNotesAck) {
-    let retries = 0, restarts = 0;
+    let retries = 0, restarts = 0, quoteRetries = 0;
     for (;;) {
       let response, data;
       try {
@@ -724,6 +731,20 @@ function checkoutDisplayedTerms(deal) {
       } catch (_) {
         if (retries++ < 2) { await checkoutRecoveryDelay(); continue; }
         throw checkoutCustomerError('De controle van je betaalpoging duurt langer. Klik opnieuw op boeken om dezelfde poging veilig te hervatten.');
+      }
+      // Both quote rejections precede order admission and Stripe session creation.
+      const quoteRejected = mottoDecember && response.status === 400 &&
+        ['Approved production quote required', 'No approved, margin-safe production offer is available'].includes(data?.message);
+      if (quoteRejected) {
+        if (quoteRetries < 2) {
+          quoteRetries++;
+          showBookingMessage('Het hotel bevestigt de kamer opnieuw. Even geduld…', 'info');
+          await new Promise(resolve => setTimeout(resolve, 1500 * quoteRetries));
+          continue;
+        }
+        const error = checkoutCustomerError('Het hotel heeft de kamer voor 4–5 december nog niet bevestigd. Controleer de beschikbaarheid opnieuw.', 'changed');
+        error.quoteUnconfirmed = true;
+        throw error;
       }
       if ((!response.ok && (response.status >= 500 || response.status === 429)) || (response.ok && data?.status === 'checkout_check_pending')) {
         if (retries++ < 2) { await checkoutRecoveryDelay(); continue; }
