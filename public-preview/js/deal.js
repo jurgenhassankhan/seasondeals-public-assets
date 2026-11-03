@@ -215,7 +215,7 @@ function dealAmenityDetail(label, detail) {
       Object.assign(deal, {title:'Vrijdagnacht bij Motto by Hilton Rotterdam City Centre',
         room:'Compact King Room', board:'Zonder maaltijden',
         short_description:'Vrijdag 4 tot zaterdag 5 december 2026. Eén nacht voor twee volwassenen.',
-        long_description:'Geadverteerd arrangement: Compact King Room zonder ontbijt. €116,67 voor twee personen: €111,48 online en €5,19 bij het hotel. Gratis annuleren tot 3 december om 11.00 uur Nederlandse tijd.',
+        long_description:'',
         travel_period_start:promoArrival,travel_period_end:promoDeparture,
         cancellation_policy:'De voorwaarden van het beschikbare verblijf staan bij de boekknop.',
         included_items:[{icon:'☾',label:'1 overnachting',detail:'4 tot 5 december 2026'},{icon:'▱',label:'Kamer voor twee',detail:'Zie het actuele aanbod bij de boekknop'},{icon:'♧',label:'2 volwassenen',detail:'Eén kamer voor twee'},...extras]});
@@ -650,9 +650,9 @@ function dealAmenityDetail(label, detail) {
         selection.querySelector('.sd-week-summary-total strong').textContent=cash(mottoDecember?total:o.price);
         deal={...deal,price:o.price,deal_price:o.price,room:o.room,board:o.board,cancellation_policy:o.cancellation,travel_period_start:r.checkin,travel_period_end:r.checkout,minimum_nights:r.nights,booking_enabled:true};
         if(mottoDecember) {
-          selection.querySelector('h3').textContent=alternative?'Alternatief voor dezelfde nacht':'Het geadverteerde arrangement';
+          selection.querySelector('h3').textContent=alternative?'Alternatief voor dezelfde nacht':'Jouw verblijf';
           selection.querySelectorAll('p').forEach(p=>p.remove());
-          result.innerHTML=(alternative?'<p>Het geadverteerde arrangement is niet beschikbaar tegen de genoemde voorwaarden. Je kunt dit alternatief kiezen:</p>':'')+
+          result.innerHTML=(alternative?'<p>De Compact King Room voor €116,67 is niet beschikbaar met de oorspronkelijke voorwaarden. Voor dezelfde nacht kun je dit verblijf boeken.</p>':'')+
             '<p><strong>'+escapeHtml(o.room)+'</strong> · '+escapeHtml(o.board)+'</p><p><strong>'+cash(total)+' totaal voor twee</strong><br>'+cash(o.price)+' online · '+cash(local)+' ter plaatse volgens het hoteltarief</p>'+
             '<p>'+escapeHtml(o.cancellation.split('. ')[0])+'.</p><details><summary>Volledige annuleringsvoorwaarden</summary><p>'+escapeHtml(o.cancellation)+'</p></details>';
         } else {
