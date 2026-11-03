@@ -40,6 +40,18 @@ function dealAmenityDetail(label, detail) {
       offer.local_fees[0].amount === 5.19 &&
       offer.cancellation?.startsWith('Bij annulering vóór 2026-12-03 10:00:00 (GMT) krijg je het volledige betaalde bedrag terug (€ 111,48).');
   }
+  let mottoSelection = null;
+  function validMottoOffer(o) {
+    return o && [o.room,o.board,o.cancellation].every(v=>typeof v==='string' && v.trim()) &&
+      Number.isFinite(o.price) && o.price>0 && Array.isArray(o.local_fees) &&
+      o.local_fees.every(f=>f && typeof f.description==='string' && f.currency==='EUR' &&
+        f.pay_at_property===true && Number.isFinite(f.amount) && f.amount>=0);
+  }
+  function mottoDifferences(before,after) {
+    const labels={room:'Kamer',board:'Verzorging',price:'Online te betalen',local_fees:'Ter plaatse te betalen',cancellation:'Annuleringsvoorwaarden'};
+    const comparable=(key,v)=>key==='local_fees'?JSON.stringify(v.map(f=>[f.description,f.amount,f.currency]).sort()):String(v).trim();
+    return Object.keys(labels).filter(k=>comparable(k,before[k])!==comparable(k,after[k])).map(k=>({field:k,label:labels[k],before:before[k],after:after[k]}));
+  }
   let deal = null;
   let gallery = [];
   let activePhoto = 0;
@@ -202,11 +214,11 @@ function dealAmenityDetail(label, detail) {
     if (mottoDecember) {
       Object.assign(deal, {title:'Vrijdagnacht bij Motto by Hilton Rotterdam City Centre',
         room:'Compact King Room', board:'Zonder maaltijden',
-        short_description:'Vrijdag 4 tot zaterdag 5 december 2026. Eén Compact King Room voor twee volwassenen, zonder ontbijt.',
-        long_description:'€116,67 voor twee personen: €111,48 online en €5,19 bij het hotel. Gratis annuleren tot 3 december om 11.00 uur Nederlandse tijd.',
+        short_description:'Vrijdag 4 tot zaterdag 5 december 2026. Eén nacht voor twee volwassenen.',
+        long_description:'Geadverteerd arrangement: Compact King Room zonder ontbijt. €116,67 voor twee personen: €111,48 online en €5,19 bij het hotel. Gratis annuleren tot 3 december om 11.00 uur Nederlandse tijd.',
         travel_period_start:promoArrival,travel_period_end:promoDeparture,
-        cancellation_policy:'Gratis annuleren tot 3 december 2026 om 11.00 uur Nederlandse tijd. Daarna is de online betaalde kamerprijs van €111,48 verschuldigd.',
-        included_items:[{icon:'☾',label:'1 overnachting',detail:'4 tot 5 december 2026'},{icon:'▱',label:'Compact King Room',detail:'Zonder ontbijt'},{icon:'♧',label:'2 volwassenen',detail:'Eén kamer voor twee'},...extras]});
+        cancellation_policy:'De voorwaarden van het beschikbare verblijf staan bij de boekknop.',
+        included_items:[{icon:'☾',label:'1 overnachting',detail:'4 tot 5 december 2026'},{icon:'▱',label:'Kamer voor twee',detail:'Zie het actuele aanbod bij de boekknop'},{icon:'♧',label:'2 volwassenen',detail:'Eén kamer voor twee'},...extras]});
     }
     renderDeal(policy);
   }
@@ -248,6 +260,7 @@ function dealAmenityDetail(label, detail) {
     let failureCode = "CHECKOUT_NETWORK", failureStatus = 0;
     let journey=createBookingJourney(), journeyRequest=null;
     recordBookingJourney(journey,'started',null);
+    let acceptedStay=mottoSelection;
     let acceptedCheckoutPrice=Number(deal.deal_price||deal.price);
     try {
       const supplier = deal.source === "provider_sync";
@@ -266,7 +279,10 @@ function dealAmenityDetail(label, detail) {
         if (typeof data.hotel_notes !== 'string' || data.hotel_notes.length > 70000 || typeof data.hotel_notes_ack !== 'string' || data.hotel_notes_ack.length > 150000) throw checkoutCustomerError('De aanvullende hotelinformatie kon niet worden geladen.');
         const offer=data.offer_review;
         if (offer && (!offer.terms || offer.terms.deal_id!==Number(deal.id) || offer.terms.currency!=='EUR' || !Number.isFinite(offer.terms.price) || offer.terms.price<=0 || !Array.isArray(offer.changes) || !Array.isArray(offer.terms.local_fees))) throw checkoutCustomerError('De actuele voorwaarden konden niet worden gecontroleerd.');
-        const approved = await reviewHotelNotes(data.hotel_notes,offer);
+        if (mottoDecember && offer && (!validMottoOffer(offer.terms) || !validMottoOffer(acceptedStay))) throw checkoutCustomerError('Het hotel kon de volledige voorwaarden nog niet bevestigen.');
+        const review = mottoDecember && offer ? {...offer,changes:[...mottoDifferences(acceptedStay,offer.terms),...offer.changes.filter(c=>['extras','hotel_notes'].includes(c.field))]} : offer;
+        const approved = await reviewHotelNotes(data.hotel_notes,review,mottoDecember?acceptedStay:null);
+        if(approved && mottoDecember && offer) acceptedStay=offer.terms;
         if (!approved) {
           recordBookingJourney(journey,'cancelled',request);
           showBookingMessage('Je hebt nog niet geboekt of betaald.', 'info');
@@ -299,6 +315,15 @@ function dealAmenityDetail(label, detail) {
       const checkoutUrl = data?.checkout_url || data?.url || data?.session_url || data?.session?.url || data?.api1?.response?.url || data?.api1?.response?.result?.url;
       failureCode = "CHECKOUT_LINK";
       if (supplier && !validSupplierCheckout(data, checkoutUrl)) throw checkoutCustomerError("De betaalpagina kon niet veilig worden bevestigd. Probeer dezelfde boeking opnieuw of neem contact op met SeasonDeals.");
+      if (mottoDecember) {
+        const finalStay=data.customer_stay;
+        if(!validMottoOffer(acceptedStay)||!validMottoOffer(finalStay)||finalStay.currency!=='EUR'||finalStay.price!==data.selling_price)
+          throw checkoutCustomerError('De definitieve hotelvoorwaarden zijn nog niet bevestigd. Controleer het verblijf opnieuw.');
+        const changes=mottoDifferences(acceptedStay,finalStay);
+        if(changes.length && !await reviewHotelNotes('',{terms:finalStay,changes},acceptedStay))
+          throw checkoutCustomerError('Je hebt de wijziging niet geaccepteerd. Er is niets betaald.', 'cancelled');
+        acceptedCheckoutPrice=finalStay.price;
+      }
       if (supplier && data.selling_price !== acceptedCheckoutPrice) {
         failureCode = "CHECKOUT_PRICE";
         throw checkoutCustomerError("De betaalpagina kon niet veilig worden bevestigd. Probeer dezelfde boeking opnieuw of neem contact op met SeasonDeals.");
@@ -319,12 +344,12 @@ function dealAmenityDetail(label, detail) {
     }
   }
 
-  function reviewHotelNotes(raw,offer) {
+  function reviewHotelNotes(raw,offer,selectedStay=null) {
     return new Promise(resolve => {
       const plain=value=>{const decoder=document.createElement('textarea');decoder.innerHTML=String(value||'').replace(/<(?:br\s*\/?|\/p|\/div|\/li)>/gi,'\n').replace(/<[^>]*>/g,'');return decoder.value.trim();};
       const normalize=value=>plain(value).replace(/\s+/g,' ').trim();
       // Compare against the page the customer actually read, not an older supplier label.
-      const displayed={price:Number(deal.deal_price||deal.price),room:deal.room,board:deal.board,cancellation:deal.cancellation_policy};
+      const displayed=selectedStay||{price:Number(deal.deal_price||deal.price),room:deal.room,board:deal.board,cancellation:deal.cancellation_policy};
       if(offer){
         const pageText=normalize(container.querySelector('.detail-content')?.textContent);
         const changes=offer.changes.map(change=>{
@@ -522,7 +547,7 @@ function dealAmenityDetail(label, detail) {
       nights=Math.round((Date.parse(r.checkout)-Date.parse(r.checkin))/86400000);nightsInput.value=String(nights);start=r.checkin;startInput.value=start;
       selectDay(r.checkin);check.click();
     });
-    function clearQuote(){quoteGeneration++;chosen=null;clearTimeout(expiry);book.hidden=true;book.style.display='none';book.disabled=true;result.textContent='';showBookingMessage('','info');}
+    function clearQuote(){quoteGeneration++;chosen=null;if(mottoDecember)mottoSelection=null;clearTimeout(expiry);book.hidden=true;book.style.display='none';book.disabled=true;result.textContent='';showBookingMessage('','info');}
     function clearSelection(){clearQuote();selected='';arrival.value='';departure.value='';selection.hidden=true;check.hidden=true;check.disabled=false;}
     function renderDays(){
       renderQuickStays();
@@ -612,16 +637,28 @@ function dealAmenityDetail(label, detail) {
     check.addEventListener('click',async()=>{
       if(checkoutBusy||!selected)return;stopRetry();pendingDays.clear();generation++;loading=false;clearTimeout(debounce);clearQuote();const id=quoteGeneration,d=selected;check.disabled=true;result.textContent='Prijs ophalen… Even geduld a.u.b.';
       try{const r=await request(d,false);if(id!==quoteGeneration||!ui.isConnected)return;
-        if(r.status!=='available'){result.textContent=r.status==='unavailable'?'Geen passend aanbod voor deze datums. Kies een andere dag.':r.retry_after?`Probeer de controle over ${r.retry_after} seconden opnieuw.`:'De controle is niet gelukt. Probeer opnieuw.';return;}
-        const o=r.options[0];
-        if (mottoDecember && (r.can_book !== true || !matchesMottoPromotion(o))) {
-          result.textContent='Dit arrangement is op dit moment niet beschikbaar tegen de aangeboden prijs en voorwaarden.';
-          return;
+        if(r.status!=='available'){result.textContent=r.status==='unavailable'?(mottoDecember?'Geen kamer beschikbaar voor 4–5 december.':'Geen passend aanbod voor deze datums. Kies een andere dag.'):r.retry_after?`Probeer de controle over ${r.retry_after} seconden opnieuw.`:'De controle is niet gelukt. Probeer opnieuw.';return;}
+        const o=mottoDecember ? r.options.find(v=>validMottoOffer(v)&&matchesMottoPromotion(v)) || r.options.find(validMottoOffer) : r.options[0];
+        if (!o || (mottoDecember && r.can_book !== true)) {
+          result.textContent='Er is geen bevestigd verblijf beschikbaar voor deze datums.'; return;
         }
-        chosen=r;cache.set(key(d),r);renderDays();selection.querySelector('.sd-week-summary-total strong').textContent=cash(o.price);
+        const alternative=mottoDecember && !matchesMottoPromotion(o);
+        chosen=r;cache.set(key(d),r);renderDays();
+        if(mottoDecember)mottoSelection=o;
+        const local=o.local_fees.reduce((total,f)=>total+Math.round(f.amount*100),0)/100;
+        const total=o.price+local;
+        selection.querySelector('.sd-week-summary-total strong').textContent=cash(mottoDecember?total:o.price);
         deal={...deal,price:o.price,deal_price:o.price,room:o.room,board:o.board,cancellation_policy:o.cancellation,travel_period_start:r.checkin,travel_period_end:r.checkout,minimum_nights:r.nights,booking_enabled:true};
-        result.innerHTML=`<p><strong>${escapeHtml(cash(o.price))} totaal</strong> · ${escapeHtml(o.room)} · ${escapeHtml(o.board)}</p><details><summary>Annuleringsvoorwaarden bekijken</summary><p>${escapeHtml(o.cancellation)}</p></details>`+o.local_fees.map(f=>`<p>${escapeHtml(f.description)}: ${escapeHtml(cash(f.amount))} ter plaatse</p>`).join('');
-        check.hidden=true;book.hidden=false;book.style.display='';book.disabled=false;book.innerHTML='Verder naar betalen <span>→</span>';
+        if(mottoDecember) {
+          selection.querySelector('h3').textContent=alternative?'Alternatief voor dezelfde nacht':'Het geadverteerde arrangement';
+          selection.querySelectorAll('p').forEach(p=>p.remove());
+          result.innerHTML=(alternative?'<p>Het geadverteerde arrangement is niet beschikbaar tegen de genoemde voorwaarden. Je kunt dit alternatief kiezen:</p>':'')+
+            '<p><strong>'+escapeHtml(o.room)+'</strong> · '+escapeHtml(o.board)+'</p><p><strong>'+cash(total)+' totaal voor twee</strong><br>'+cash(o.price)+' online · '+cash(local)+' ter plaatse volgens het hoteltarief</p>'+
+            '<p>'+escapeHtml(o.cancellation.split('. ')[0])+'.</p><details><summary>Volledige annuleringsvoorwaarden</summary><p>'+escapeHtml(o.cancellation)+'</p></details>';
+        } else {
+          result.innerHTML='<p><strong>'+cash(o.price)+' totaal</strong> · '+escapeHtml(o.room)+' · '+escapeHtml(o.board)+'</p><details><summary>Annuleringsvoorwaarden bekijken</summary><p>'+escapeHtml(o.cancellation)+'</p></details>'+o.local_fees.map(f=>'<p>'+escapeHtml(f.description)+': '+cash(f.amount)+' ter plaatse</p>').join('');
+        }
+        check.hidden=true;book.hidden=false;book.style.display='';book.disabled=false;book.innerHTML=alternative?'Boek dit alternatief <span>→</span>':'Verder naar betalen <span>→</span>';
         expiry=setTimeout(()=>{if(id===quoteGeneration&&!checkoutBusy){clearQuote();check.hidden=false;check.disabled=false;result.textContent='Controleer de prijs opnieuw om verder te gaan.';}},Math.max(0,r.valid_until-Date.now()));
       }catch(e){if(id===quoteGeneration)result.textContent=e.message;}
       finally{if(id===quoteGeneration)check.disabled=false;}
@@ -642,7 +679,7 @@ function dealAmenityDetail(label, detail) {
       }
       selectDay(promoArrival);
       arrival.readOnly=true; departure.readOnly=true;
-      selection.querySelector('h3').textContent='4–5 december · €116,67 voor twee';
+      selection.querySelector('h3').textContent='4–5 december · 2 volwassenen';
       check.click();
       return;
     }
