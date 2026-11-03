@@ -31,6 +31,8 @@ function dealAmenityDetail(label, detail) {
   const container = document.getElementById("deal-detail");
   const cmsDealId = container?.dataset.sdDealId;
   const dealId = cmsDealId || new URLSearchParams(window.location.search).get("id");
+  // The December Motto promotion uses its approved fixed supplier offer.
+  const fixedMottoOffer = Number(dealId) === 36;
   let deal = null;
   let gallery = [];
   let activePhoto = 0;
@@ -59,7 +61,7 @@ function dealAmenityDetail(label, detail) {
       const data = response.ok ? await response.json() : null;
       pendingDeal = cmsDealId ? (data?.deal || data) : resolveDeals(data).find((item) => String(item?.id) === String(dealId));
       if (String(pendingDeal?.id) !== String(dealId)) pendingDeal = null;
-      if (!pendingDeal || pendingDeal.source === 'provider_sync') {
+      if (!fixedMottoOffer && (!pendingDeal || pendingDeal.source === 'provider_sync')) {
       // Approved flexible stays remain accessible even when the old fixed offer expires.
       // The capability endpoint independently checks approval and exact supplier identity.
       try {
@@ -110,7 +112,7 @@ function dealAmenityDetail(label, detail) {
         gallery = getImages(pendingDeal);
         renderDeal();
         bindDealEvents();
-        initStayChoice(stayCapability);
+        if (!fixedMottoOffer) initStayChoice(stayCapability);
         renderedDeal = snapshot;
       }
     } catch (error) {
