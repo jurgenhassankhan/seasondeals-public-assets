@@ -33,13 +33,6 @@ function dealAmenityDetail(label, detail) {
   const dealId = cmsDealId || new URLSearchParams(window.location.search).get("id");
   const mottoDecember = Number(dealId) === 36;
   const promoArrival = '2026-12-04', promoDeparture = '2026-12-05';
-  function matchesMottoPromotion(offer) {
-    return offer?.room === 'Compact King Room' && offer.board === 'Zonder maaltijden' &&
-      offer.price === 111.48 && offer.local_fees?.length === 1 &&
-      offer.local_fees[0].currency === 'EUR' && offer.local_fees[0].pay_at_property === true &&
-      offer.local_fees[0].amount === 5.19 &&
-      offer.cancellation?.startsWith('Bij annulering vóór 2026-12-03 10:00:00 (GMT) krijg je het volledige betaalde bedrag terug (€ 111,48).');
-  }
   let mottoSelection = null;
   function validMottoOffer(o) {
     return o && [o.room,o.board,o.cancellation].every(v=>typeof v==='string' && v.trim()) &&
@@ -214,7 +207,7 @@ function dealAmenityDetail(label, detail) {
     if (mottoDecember) {
       Object.assign(deal, {title:'Vrijdagnacht bij Motto by Hilton Rotterdam City Centre',
         room:'Compact King Room', board:'Zonder maaltijden',
-        short_description:'Vrijdag 4 tot zaterdag 5 december 2026. Eén nacht voor twee volwassenen.',
+        short_description:'Vrijdag 4 tot zaterdag 5 december 2026. Eén nacht voor twee volwassenen in een Compact King Room, zonder ontbijt.',
         long_description:'',
         travel_period_start:promoArrival,travel_period_end:promoDeparture,
         cancellation_policy:'De voorwaarden van het beschikbare verblijf staan bij de boekknop.',
@@ -638,11 +631,10 @@ function dealAmenityDetail(label, detail) {
       if(checkoutBusy||!selected)return;stopRetry();pendingDays.clear();generation++;loading=false;clearTimeout(debounce);clearQuote();const id=quoteGeneration,d=selected;check.disabled=true;result.textContent='Prijs ophalen… Even geduld a.u.b.';
       try{const r=await request(d,false);if(id!==quoteGeneration||!ui.isConnected)return;
         if(r.status!=='available'){result.textContent=r.status==='unavailable'?(mottoDecember?'Geen kamer beschikbaar voor 4–5 december.':'Geen passend aanbod voor deze datums. Kies een andere dag.'):r.retry_after?`Probeer de controle over ${r.retry_after} seconden opnieuw.`:'De controle is niet gelukt. Probeer opnieuw.';return;}
-        const o=mottoDecember ? r.options.find(v=>validMottoOffer(v)&&matchesMottoPromotion(v)) || r.options.find(validMottoOffer) : r.options[0];
+        const o=mottoDecember ? r.options.find(validMottoOffer) : r.options[0];
         if (!o || (mottoDecember && r.can_book !== true)) {
           result.textContent='Er is geen bevestigd verblijf beschikbaar voor deze datums.'; return;
         }
-        const alternative=mottoDecember && !matchesMottoPromotion(o);
         chosen=r;cache.set(key(d),r);renderDays();
         if(mottoDecember)mottoSelection=o;
         const local=o.local_fees.reduce((total,f)=>total+Math.round(f.amount*100),0)/100;
@@ -650,15 +642,15 @@ function dealAmenityDetail(label, detail) {
         selection.querySelector('.sd-week-summary-total strong').textContent=cash(mottoDecember?total:o.price);
         deal={...deal,price:o.price,deal_price:o.price,room:o.room,board:o.board,cancellation_policy:o.cancellation,travel_period_start:r.checkin,travel_period_end:r.checkout,minimum_nights:r.nights,booking_enabled:true};
         if(mottoDecember) {
-          selection.querySelector('h3').textContent=alternative?'Alternatief voor dezelfde nacht':'Jouw verblijf';
+          selection.querySelector('h3').textContent='Jouw verblijf';
           selection.querySelectorAll('p').forEach(p=>p.remove());
-          result.innerHTML=(alternative?'<p>De Compact King Room voor €116,67 is niet beschikbaar met de oorspronkelijke voorwaarden. Voor dezelfde nacht kun je dit verblijf boeken.</p>':'')+
+          result.innerHTML=
             '<p><strong>'+escapeHtml(o.room)+'</strong> · '+escapeHtml(o.board)+'</p><p><strong>'+cash(total)+' totaal voor twee</strong><br>'+cash(o.price)+' online · '+cash(local)+' ter plaatse volgens het hoteltarief</p>'+
             '<p>'+escapeHtml(o.cancellation.split('. ')[0])+'.</p><details><summary>Volledige annuleringsvoorwaarden</summary><p>'+escapeHtml(o.cancellation)+'</p></details>';
         } else {
           result.innerHTML='<p><strong>'+cash(o.price)+' totaal</strong> · '+escapeHtml(o.room)+' · '+escapeHtml(o.board)+'</p><details><summary>Annuleringsvoorwaarden bekijken</summary><p>'+escapeHtml(o.cancellation)+'</p></details>'+o.local_fees.map(f=>'<p>'+escapeHtml(f.description)+': '+cash(f.amount)+' ter plaatse</p>').join('');
         }
-        check.hidden=true;book.hidden=false;book.style.display='';book.disabled=false;book.innerHTML=alternative?'Boek dit alternatief <span>→</span>':'Verder naar betalen <span>→</span>';
+        check.hidden=true;book.hidden=false;book.style.display='';book.disabled=false;book.innerHTML='Verder naar betalen <span>→</span>';
         expiry=setTimeout(()=>{if(id===quoteGeneration&&!checkoutBusy){clearQuote();check.hidden=false;check.disabled=false;result.textContent='Controleer de prijs opnieuw om verder te gaan.';}},Math.max(0,r.valid_until-Date.now()));
       }catch(e){if(id===quoteGeneration)result.textContent=e.message;}
       finally{if(id===quoteGeneration)check.disabled=false;}
@@ -901,6 +893,7 @@ function checkoutDisplayedTerms(deal) {
   function showToast(value){const toast=document.getElementById("preview-toast");if(!toast)return;toast.textContent=value;toast.classList.add("is-visible");clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>toast.classList.remove("is-visible"),3500);}
   function showError(title,message){container.innerHTML=`<section class="detail-error"><span>!</span><h1>${escapeHtml(title)}</h1><p>${escapeHtml(message)}</p><a class="button button-primary" href="${escapeAttribute(CONFIG.homePage)}#deals">Terug naar alle deals <span>→</span></a></section>`;}
 })();
+
 
 
 
