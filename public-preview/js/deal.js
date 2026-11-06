@@ -31,7 +31,8 @@ function dealAmenityDetail(label, detail) {
   const container = document.getElementById("deal-detail");
   const cmsDealId = container?.dataset.sdDealId;
   const dealId = cmsDealId || new URLSearchParams(window.location.search).get("id");
-  const mottoDecember = Number(dealId) === 36;
+  const mottoDecember = [36,41].includes(Number(dealId));
+  const delftDecember = Number(dealId) === 41;
   const promoArrival = '2026-12-04', promoDeparture = '2026-12-05';
   let mottoSelection = null;
   function validMottoOffer(o) {
@@ -81,12 +82,12 @@ function dealAmenityDetail(label, detail) {
         if(capResponse.ok){const p=await capResponse.json();stayCapability=p;if(validStayPolicy(p,Number(dealId))&&p.deal?.id===Number(dealId)&&p.deal.source==='provider_sync'&&(p.deal.booking_enabled===false||p.mode==='free-calendar'&&p.can_book===true)){pendingDeal={...(pendingDeal?.content_verified===true?pendingDeal:{}),...p.deal};if(checkoutBusy)return;deal=pendingDeal;gallery=getImages(pendingDeal);renderFlexibleDeal(p);bindDealEvents();await initStayChoice(p);return;}}
       }catch{}
       }
-      if (mottoDecember) return showError('Aanbod wordt gecontroleerd', 'Het verblijf van 4 tot 5 december kan nu niet worden bevestigd.');
+      if (mottoDecember) return showError('Aanbod niet bevestigd', 'Het verblijf van 4 tot 5 december kan nu niet worden bevestigd. Controleer opnieuw of bekijk onze andere deals.',true);
       if (!response.ok) throw new Error(`De dealservice gaf status ${response.status}.`);
       if (!pendingDeal || !isPublicDeal(pendingDeal)) {
         // Hidden supplier offers are absent from /deals. Resolve their public status
         // separately so old links retain the reason; concepts remain protected by 404.
-        const statusResponse = await fetch(CONFIG.dealsEndpoint.replace(/\/deals$/, '/supplier/production/availability-status'), {method:'POST',mode:'cors',credentials:'omit',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({deal_id:Number(dealId)})});
+        const statusResponse = await fetch(CONFIG.dealsEndpoint.replace(/\/deals$/, '/supplier/production/availability-status'), {method:'POST',mode:'cors',credentials:'omit',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({deal_id:Number(dealId)}),signal:AbortSignal.timeout(45000)});
         if (statusResponse.ok) {
           const availability = await statusResponse.json();
           return showError(availability.status === 'expired' ? 'Deze deal is verlopen' : availability.status === 'unavailable' ? 'Deze deal is niet beschikbaar' : 'Beschikbaarheid niet bevestigd', availability.message || 'Probeer het later opnieuw.');
@@ -96,7 +97,7 @@ function dealAmenityDetail(label, detail) {
       if(pendingDeal.source==='provider_sync') {
         let availability={status:'unknown',available:false};
         try {
-          const statusResponse=await fetch(CONFIG.dealsEndpoint.replace(/\/deals$/, '/supplier/production/availability-status'),{method:'POST',mode:'cors',credentials:'omit',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({deal_id:Number(dealId)}),signal:AbortSignal.timeout(25000)});
+          const statusResponse=await fetch(CONFIG.dealsEndpoint.replace(/\/deals$/, '/supplier/production/availability-status'),{method:'POST',mode:'cors',credentials:'omit',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({deal_id:Number(dealId)}),signal:AbortSignal.timeout(45000)});
           if(statusResponse.status===404 || statusResponse.status===403)return showError('Deze deal is niet beschikbaar','De aanbieding is niet meer gepubliceerd.');
           if(statusResponse.ok)availability=await statusResponse.json();
         }catch{}
@@ -104,8 +105,9 @@ function dealAmenityDetail(label, detail) {
         if(availability.available===true) {
           // The refresh may have changed the price and terms. Reload the public snapshot.
           try {
-            const fresh=await fetch(CONFIG.dealsEndpoint,{cache:'no-store'});
-            const updated=fresh.ok?resolveDeals(await fresh.json()).find(d=>String(d.id)===String(dealId)):null;
+            const fresh=await fetch(`${CONFIG.dealsEndpoint}/${encodeURIComponent(dealId)}`,{cache:'no-store',signal:AbortSignal.timeout(15000)});
+            const freshData=fresh.ok?await fresh.json():null;
+            const updated=freshData?.deal||freshData;
             if(!updated || !isPublicDeal(updated))return showError('Deze deal is niet beschikbaar','Bekijk onze andere aanbiedingen.');
             pendingDeal=updated;
             if(pendingDeal.price_is_current===false)availability={status:'unknown',available:false};
@@ -115,7 +117,6 @@ function dealAmenityDetail(label, detail) {
         pendingDeal.price_is_current=availability.available===true;
         if(!pendingDeal.price_is_current) {
           pendingDeal.booking_enabled=false;
-          dealRetry=setTimeout(loadDeal,15000);
         }
       }
       if (checkoutBusy) { pendingDeal=previousDeal; dealRetry=setTimeout(loadDeal,15000); return; }
@@ -135,8 +136,7 @@ function dealAmenityDetail(label, detail) {
         pendingDeal={...deal,price_is_current:false,booking_enabled:false};
         deal=pendingDeal;renderDeal();bindDealEvents();renderedDeal=null;
       }
-      if (!previousDeal) showError("De deal kon niet worden geladen", "Controleer je internetverbinding. We proberen het automatisch opnieuw.");
-      dealRetry=setTimeout(loadDeal,15000);
+      if (!previousDeal) showError("De deal kon niet worden geladen", "De controle is niet gelukt. Probeer opnieuw of bekijk onze andere deals.",true);
     } finally { dealLoading=false; }
   }
 
@@ -176,7 +176,7 @@ function dealAmenityDetail(label, detail) {
         <section><span class="detail-section-label">Annuleren en wijzigen</span><h2>Goed om vooraf te weten.</h2><div class="policy-card">${formatText(policy)}</div></section>
       </article>
       <aside class="booking-card" aria-label="${flexiblePolicy ? "Verblijf kiezen" : "Deal boeken"}"><div class="booking-price" ${flexiblePolicy ? 'hidden style="display:none"' : ""}><span>${!checking && original > price ? `<del>${escapeHtml(formatCurrency(original))}</del>` : ""}<strong>${checking ? "Laatst bekend: " : ""}${escapeHtml(formatCurrency(price))}</strong><small>${deal.max_guests > 1 ? `voor maximaal ${formatNumber(deal.max_guests)} personen` : "per boeking"}</small></span>${!checking && saving > 0 ? `<span class="booking-save">Bespaar ${escapeHtml(formatCurrency(saving))}</span>` : ""}</div>
-        ${checking ? '<p class="notice" role="status">We werken de prijs en beschikbaarheid automatisch bij. Je ziet de laatst bekende dealgegevens. Boeken kan zodra het actuele aanbod is bevestigd.</p>' : ''}
+        ${checking ? '<p class="notice" role="status">We kunnen dit aanbod nu niet bevestigen. Je ziet de laatst bekende prijs. Controleer opnieuw voor een actuele prijs en boekmogelijkheid.</p><button id="retry-deal" class="button button-primary" type="button">Opnieuw controleren →</button><p><a href="/#deals">Bekijk andere deals</a></p>' : ''}
         ${!checking && deal.source === "provider_sync" && deal.booking_enabled !== true ? '<p class="notice">Deze aanbieding is goedgekeurd. Boeken is binnenkort mogelijk.</p>' : ''}${checking ? '' : `<form id="booking-form" class="booking-form" ${flexiblePolicy ? 'hidden style="display:none"' : ""} novalidate><div class="booking-dates"><label>Check-in<input id="sd-checkin" name="checkin" type="date" required></label><label>Check-out<input id="sd-checkout" name="checkout" type="date" required></label></div><label>Aantal gasten<select id="sd-guests" name="guests">${Array.from({length:maxGuests},(_,i)=>`<option value="${i+1}">${i+1} ${i ? "gasten" : "gast"}</option>`).join("")}</select></label><div id="booking-message" class="booking-message" role="alert"></div><button id="sd-check-availability" class="button button-primary booking-submit" type="submit" ${deal.source === "provider_sync" && deal.booking_enabled !== true ? "disabled" : ""}>Bekijk beschikbaarheid & boek <span>→</span></button></form>`}
         <div class="booking-assurances"><div><span>♢</span><p><strong>Veilig betalen via Stripe</strong><br>Je betaling wordt beveiligd verwerkt.</p></div><div><span>▱</span><p><strong>Direct je voucher</strong><br>Na betaling ontvang je de bevestiging per e-mail.</p></div><div><span>◇</span><p><strong>Transparante voorwaarden</strong><br>Geen onverwachte verplichte kosten achteraf.</p></div></div>${remaining !== null ? `<p class="availability${remaining <= 5 ? " is-low" : ""}"><span>●</span> Actuele voorraad: <strong>${formatNumber(remaining)} ${remaining === 1 ? "deal" : "deals"}</strong></p>` : ""}
       </aside></div>
@@ -205,9 +205,9 @@ function dealAmenityDetail(label, detail) {
       ]
     };
     if (mottoDecember) {
-      Object.assign(deal, {title:'Vrijdagnacht bij Motto by Hilton Rotterdam City Centre',
-        room:'Compact King Room', board:'Zonder maaltijden',
-        short_description:'Vrijdag 4 tot zaterdag 5 december 2026. Eén nacht voor twee volwassenen in een Compact King Room, zonder ontbijt.',
+      Object.assign(deal, {title:delftDecember?'Vrijdagnacht bij WestCord Hotel Delft':'Vrijdagnacht bij Motto by Hilton Rotterdam City Centre',
+        room:delftDecember?'Comfort Room':'Compact King Room', board:'Zonder maaltijden',
+        short_description:`Vrijdag 4 tot zaterdag 5 december 2026. Eén nacht voor twee volwassenen in een ${delftDecember?'Comfort Room':'Compact King Room'}, zonder ontbijt.`,
         long_description:'',
         travel_period_start:promoArrival,travel_period_end:promoDeparture,
         cancellation_policy:'De voorwaarden van het beschikbare verblijf staan bij de boekknop.',
@@ -225,6 +225,7 @@ function dealAmenityDetail(label, detail) {
   function renderLightbox(title) { return gallery.length ? `<div id="deal-lightbox" class="lightbox" role="dialog" aria-modal="true" aria-label="Fotogalerij"><button class="lightbox-close" type="button" aria-label="Sluiten">×</button><button class="lightbox-nav lightbox-prev" type="button" aria-label="Vorige foto">‹</button><img id="lightbox-image" src="${escapeAttribute(gallery[0])}" alt="${escapeAttribute(title)}"><button class="lightbox-nav lightbox-next" type="button" aria-label="Volgende foto">›</button><span id="lightbox-counter" class="lightbox-counter">1 / ${gallery.length}</span></div>` : ""; }
 
   function bindDealEvents() {
+    bindDealRetry();
     document.querySelectorAll("[data-photo]").forEach((button) => button.addEventListener("click", () => openPhoto(number(button.dataset.photo) || 0)));
     document.querySelector(".lightbox-close")?.addEventListener("click", closePhoto);
     document.querySelector(".lightbox-prev")?.addEventListener("click", () => movePhoto(-1));
@@ -512,6 +513,19 @@ function dealAmenityDetail(label, detail) {
     const cash=n=>new Intl.NumberFormat('nl-NL',{style:'currency',currency:'EUR'}).format(n).replace(/\s/g,'');
     let generation=0,quoteGeneration=0,nights=1,start=policy.start,selected='',chosen=null,loading=false,retryAt=0,debounce,expiry,retryTimer,retries=0;
     const cache=new Map(),failures=new Set(),pendingDays=new Set();
+    // Start the fallback in parallel, so an unavailable Delft offer does not add another waiting cycle.
+    const fallbackPromise=delftDecember?fetch(endpoint,{method:'POST',mode:'cors',credentials:'omit',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({deal_id:36,stay:{checkin:promoArrival,checkout:promoDeparture,guests:2}}),signal:AbortSignal.timeout(25000)}).then(async response=>response.ok?response.json():null).catch(()=>null):Promise.resolve(null);
+    async function showHotelAlternative(id) {
+      if(!delftDecember)return;
+      const r=await fallbackPromise;
+      if(id!==quoteGeneration||!ui.isConnected||!validStayResult(r,36,promoArrival,promoDeparture,2)||r.status!=='available'||r.can_book!==true)return;
+      const o=r.options.find(validMottoOffer);if(!o)return;
+      const local=o.local_fees.reduce((sum,f)=>sum+Math.round(f.amount*100),0)/100;
+      const card=document.createElement('div');card.className='notice';
+      card.innerHTML='<h3>Wel beschikbaar: Rotterdam</h3><p>Motto by Hilton Rotterdam City Centre<br>4–5 december · 1 nacht · 2 volwassenen</p><p>'+escapeHtml(o.room)+' · '+escapeHtml(o.board)+'</p><p><strong>'+cash(o.price+local)+' totaal voor twee</strong><br>'+cash(o.price)+' online · '+cash(local)+' ter plaatse</p><p>'+escapeHtml(o.cancellation)+'</p><a class="button button-primary" href="/deals/motto-by-hilton-rotterdam-city-centre-36">Bekijk dit alternatief →</a>';
+      result.append(card);
+      setTimeout(()=>card.remove(),Math.max(0,r.valid_until-Date.now()));
+    }
     const key=d=>[d,dateAdd(d,nights),policy.guests].join('|');
     for(const r of (Array.isArray(policy.calendar_cache)?policy.calendar_cache:[]).slice(-28)){
       if(validStayDay(r?.checkin)&&validStayDay(r?.checkout)&&r.guests===policy.guests&&r.can_book===false&&validStayResult(r,Number(deal.id),r.checkin,r.checkout,policy.guests))cache.set([r.checkin,r.checkout,r.guests].join('|'),r);
@@ -521,7 +535,7 @@ function dealAmenityDetail(label, detail) {
     let quickSignature='',quickTimer;
     function quickOptions(){
       const now=Date.now();
-      return Array.from(cache.values()).filter(r=>[33,36].includes(Number(deal.id))&&r.status==='available'&&r.checkin>=policy.start&&r.checkout>r.checkin&&r.guests===policy.guests&&Number.isFinite(r.options?.[0]?.price)&&r.options[0].price>0&&Array.isArray(r.options[0].local_fees)&&Number.isFinite(r.price_checked_at||r.checked_at)&&(r.price_checked_at||r.checked_at)<=now&&now-(r.price_checked_at||r.checked_at)<600000)
+      return Array.from(cache.values()).filter(r=>[33,36,41].includes(Number(deal.id))&&r.status==='available'&&r.checkin>=policy.start&&r.checkout>r.checkin&&r.guests===policy.guests&&Number.isFinite(r.options?.[0]?.price)&&r.options[0].price>0&&Array.isArray(r.options[0].local_fees)&&Number.isFinite(r.price_checked_at||r.checked_at)&&(r.price_checked_at||r.checked_at)<=now&&now-(r.price_checked_at||r.checked_at)<600000)
         .sort((a,b)=>a.checkin.localeCompare(b.checkin)||a.checkout.localeCompare(b.checkout)).slice(0,3);
     }
     function renderQuickStays(){
@@ -553,7 +567,7 @@ function dealAmenityDetail(label, detail) {
       }).join('');
     }
     async function request(d,calendar){
-      const end=dateAdd(d,nights),response=await fetch(endpoint,{method:'POST',mode:'cors',credentials:'omit',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({deal_id:Number(deal.id),stay:{checkin:d,checkout:end,guests:policy.guests,calendar}}),signal:AbortSignal.timeout(25000)});
+      const end=dateAdd(d,nights),response=await fetch(endpoint,{method:'POST',mode:'cors',credentials:'omit',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({deal_id:Number(deal.id),stay:{checkin:d,checkout:end,guests:policy.guests,calendar}}),signal:AbortSignal.timeout(45000)});
       if(!response.ok)throw Error('De controle is niet gelukt. Probeer het opnieuw.');
       const r=await response.json();
       if(!validStayResult(r,Number(deal.id),d,end,policy.guests))throw Error('De beschikbaarheid kon niet worden bevestigd.');
@@ -630,10 +644,10 @@ function dealAmenityDetail(label, detail) {
     check.addEventListener('click',async()=>{
       if(checkoutBusy||!selected)return;stopRetry();pendingDays.clear();generation++;loading=false;clearTimeout(debounce);clearQuote();const id=quoteGeneration,d=selected;check.disabled=true;result.textContent='Prijs ophalen… Even geduld a.u.b.';
       try{const r=await request(d,false);if(id!==quoteGeneration||!ui.isConnected)return;
-        if(r.status!=='available'){result.textContent=r.status==='unavailable'?(mottoDecember?'Geen kamer beschikbaar voor 4–5 december.':'Geen passend aanbod voor deze datums. Kies een andere dag.'):r.retry_after?`Probeer de controle over ${r.retry_after} seconden opnieuw.`:'De controle is niet gelukt. Probeer opnieuw.';return;}
+        if(r.status!=='available'){result.textContent=r.status==='unavailable'?(mottoDecember?'Geen kamer beschikbaar voor 4–5 december.':'Geen passend aanbod voor deze datums. Kies een andere dag.'):r.retry_after?`Probeer de controle over ${r.retry_after} seconden opnieuw.`:'De controle is niet gelukt. Probeer opnieuw.';await showHotelAlternative(id);return;}
         const o=mottoDecember ? r.options.find(validMottoOffer) : r.options[0];
         if (!o || (mottoDecember && r.can_book !== true)) {
-          result.textContent='Er is geen bevestigd verblijf beschikbaar voor deze datums.'; return;
+          result.textContent='Er is geen bevestigd verblijf beschikbaar voor deze datums.'; await showHotelAlternative(id); return;
         }
         chosen=r;cache.set(key(d),r);renderDays();
         if(mottoDecember)mottoSelection=o;
@@ -645,6 +659,7 @@ function dealAmenityDetail(label, detail) {
           selection.querySelector('h3').textContent='Jouw verblijf';
           selection.querySelectorAll('p').forEach(p=>p.remove());
           result.innerHTML=
+            (delftDecember && o.room !== 'Comfort Room' ? '<p class="notice"><strong>Beschikbaar alternatief in hetzelfde hotel</strong><br>De Comfort Room kon niet worden bevestigd. Je kunt hieronder deze andere kamer kiezen voor dezelfde datums. De foto’s hierboven tonen de oorspronkelijke Comfort Room.</p>' : '')+
             '<p><strong>'+escapeHtml(o.room)+'</strong> · '+escapeHtml(o.board)+'</p><p><strong>'+cash(total)+' totaal voor twee</strong><br>'+cash(o.price)+' online · '+cash(local)+' ter plaatse volgens het hoteltarief</p>'+
             '<p>'+escapeHtml(o.cancellation.split('. ')[0])+'.</p><details><summary>Volledige annuleringsvoorwaarden</summary><p>'+escapeHtml(o.cancellation)+'</p></details>';
         } else {
@@ -652,7 +667,7 @@ function dealAmenityDetail(label, detail) {
         }
         check.hidden=true;book.hidden=false;book.style.display='';book.disabled=false;book.innerHTML='Verder naar betalen <span>→</span>';
         expiry=setTimeout(()=>{if(id===quoteGeneration&&!checkoutBusy){clearQuote();check.hidden=false;check.disabled=false;result.textContent='Controleer de prijs opnieuw om verder te gaan.';}},Math.max(0,r.valid_until-Date.now()));
-      }catch(e){if(id===quoteGeneration)result.textContent=e.message;}
+      }catch(e){if(id===quoteGeneration){result.textContent=e.message;await showHotelAlternative(id);}}
       finally{if(id===quoteGeneration)check.disabled=false;}
     });
     form.addEventListener('submit',e=>{if(!chosen||chosen.checkin!==arrival.value||chosen.checkout!==departure.value||chosen.valid_until<=Date.now()){e.preventDefault();e.stopImmediatePropagation();clearQuote();check.hidden=false;result.textContent='Controleer eerst de actuele prijs voor je gekozen verblijf.';}},true);
@@ -684,7 +699,7 @@ function dealAmenityDetail(label, detail) {
     if (deal.source !== 'provider_sync') return;
     const endpoint = CONFIG.dealsEndpoint.replace(/\/deals$/, '/supplier/production/stay-options');
     const request = async stay => {
-      const response = await fetch(endpoint, {method:'POST',mode:'cors',credentials:'omit',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({deal_id:Number(deal.id),stay}),signal:AbortSignal.timeout(25000)});
+      const response = await fetch(endpoint, {method:'POST',mode:'cors',credentials:'omit',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({deal_id:Number(deal.id),stay}),signal:AbortSignal.timeout(45000)});
       if (!response.ok) throw new Error('De beschikbaarheid kon niet worden gecontroleerd. Probeer opnieuw.');
       return response.json();
     };
@@ -722,10 +737,10 @@ function dealAmenityDetail(label, detail) {
     });
   }
   function validStayDay(value) {return typeof value==='string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value+'T00:00:00Z')) && new Date(value+'T00:00:00Z').toISOString().slice(0,10)===value;}
-  function validStayPolicy(p,id) {if(p?.mode==='free-calendar')return p.enabled===true&&p.deal_id===id&&[33,36].includes(id)&&p.can_book===true&&validStayDay(p.start)&&p.end===null&&p.min_nights===1&&p.max_nights===null&&Number.isInteger(p.guests)&&p.guests>=1&&p.guests<=6&&typeof p.expected_terms==='string';return !!p && p.enabled===true && p.deal_id===id && p.can_book===false && validStayDay(p.start) && validStayDay(p.end) && p.start<p.end && Number.isInteger(p.min_nights) && Number.isInteger(p.max_nights) && p.min_nights>=1 && p.max_nights>=p.min_nights && p.max_nights<=30 && Number.isInteger(p.guests) && p.guests>=1 && p.guests<=6;}
+  function validStayPolicy(p,id) {if(p?.mode==='free-calendar')return p.enabled===true&&p.deal_id===id&&[33,36,41].includes(id)&&p.can_book===true&&validStayDay(p.start)&&p.end===null&&p.min_nights===1&&p.max_nights===null&&Number.isInteger(p.guests)&&p.guests>=1&&p.guests<=6&&typeof p.expected_terms==='string';return !!p && p.enabled===true && p.deal_id===id && p.can_book===false && validStayDay(p.start) && validStayDay(p.end) && p.start<p.end && Number.isInteger(p.min_nights) && Number.isInteger(p.max_nights) && p.min_nights>=1 && p.max_nights>=p.min_nights && p.max_nights<=30 && Number.isInteger(p.guests) && p.guests>=1 && p.guests<=6;}
   function validStayDates(p,a,b) {const nights=(Date.parse(b)-Date.parse(a))/86400000;return validStayDay(a)&&validStayDay(b)&&a>=p.start&&b<=p.end&&nights>=p.min_nights&&nights<=p.max_nights;}
   function validStayResult(r,id,a,b,guests,now=Date.now()) {
-    return !!r && r.deal_id===id && r.checkin===a && r.checkout===b && r.guests===guests && r.nights===(Date.parse(b)-Date.parse(a))/86400000 && r.currency==='EUR' && (r.can_book===false||[33,36].includes(id)&&r.can_book===true) && Number.isFinite(r.checked_at) && Number.isFinite(r.valid_until) && r.checked_at<=now+5000 && r.valid_until>now && r.valid_until>r.checked_at && r.valid_until-r.checked_at<=60000 && Array.isArray(r.options) && r.options.length<=6 && ['available','unavailable','unknown','price_review_required'].includes(r.status) && (r.status==='available'?r.options.length>0:r.options.length===0) && r.options.every(o=>o && typeof o.room==='string' && typeof o.board==='string' && typeof o.cancellation==='string' && Number.isFinite(o.price)&&o.price>0);
+    return !!r && r.deal_id===id && r.checkin===a && r.checkout===b && r.guests===guests && r.nights===(Date.parse(b)-Date.parse(a))/86400000 && r.currency==='EUR' && (r.can_book===false||[33,36,41].includes(id)&&r.can_book===true) && Number.isFinite(r.checked_at) && Number.isFinite(r.valid_until) && r.checked_at<=now+5000 && r.valid_until>now && r.valid_until>r.checked_at && r.valid_until-r.checked_at<=60000 && Array.isArray(r.options) && r.options.length<=6 && ['available','unavailable','unknown','price_review_required'].includes(r.status) && (r.status==='available'?r.options.length>0:r.options.length===0) && r.options.every(o=>o && typeof o.room==='string' && typeof o.board==='string' && typeof o.cancellation==='string' && Number.isFinite(o.price)&&o.price>0);
   }
 
   // BEGIN DISPLAYED CHECKOUT TERMS
@@ -891,7 +906,14 @@ function checkoutDisplayedTerms(deal) {
 
   function showBookingMessage(value,type){const el=document.getElementById("booking-message");if(!el)return;el.textContent=value;el.className=`booking-message is-visible is-${type}`;}
   function showToast(value){const toast=document.getElementById("preview-toast");if(!toast)return;toast.textContent=value;toast.classList.add("is-visible");clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>toast.classList.remove("is-visible"),3500);}
-  function showError(title,message){container.innerHTML=`<section class="detail-error"><span>!</span><h1>${escapeHtml(title)}</h1><p>${escapeHtml(message)}</p><a class="button button-primary" href="${escapeAttribute(CONFIG.homePage)}#deals">Terug naar alle deals <span>→</span></a></section>`;}
+  function bindDealRetry() {
+    document.getElementById("retry-deal")?.addEventListener("click",async function(){
+      if(dealLoading||checkoutBusy)return;
+      this.disabled=true;this.textContent="Aanbod controleren…";
+      try { await loadDeal(); } finally { if(this.isConnected){this.disabled=false;this.textContent="Opnieuw controleren →";} }
+    });
+  }
+  function showError(title,message,retry=false){container.innerHTML=`<section class="detail-error"><span>!</span><h1>${escapeHtml(title)}</h1><p>${escapeHtml(message)}</p>${retry ? '<button id="retry-deal" class="button button-primary" type="button">Opnieuw controleren →</button>' : ''}<a class="button button-primary" href="${escapeAttribute(CONFIG.homePage)}#deals">Terug naar alle deals <span>→</span></a></section>`;if(retry)bindDealRetry();}
 })();
 
 
