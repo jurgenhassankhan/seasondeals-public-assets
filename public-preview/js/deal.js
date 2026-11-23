@@ -268,42 +268,69 @@ function dealAmenityDetail(label, detail) {
       failureCode = response.ok ? "CHECKOUT_RESPONSE" : "CHECKOUT_HTTP";
       let responseText = await response.text();
       let data = {}; try { data = responseText ? JSON.parse(responseText) : {}; } catch { data = { message: responseText }; }
-      if (supplier && response.ok && data?.status === "hotel_notes_review" && data.checkout_created === false) {
-        failureCode = null;
-        if (typeof data.hotel_notes !== 'string' || data.hotel_notes.length > 70000 || typeof data.hotel_notes_ack !== 'string' || data.hotel_notes_ack.length > 150000) throw checkoutCustomerError('De aanvullende hotelinformatie kon niet worden geladen.');
-        const offer=data.offer_review;
-        if (offer && (!offer.terms || offer.terms.deal_id!==Number(deal.id) || offer.terms.currency!=='EUR' || !Number.isFinite(offer.terms.price) || offer.terms.price<=0 || !Array.isArray(offer.changes) || !Array.isArray(offer.terms.local_fees))) throw checkoutCustomerError('De actuele voorwaarden konden niet worden gecontroleerd.');
-        if (mottoDecember && offer && (!validMottoOffer(offer.terms) || !validMottoOffer(acceptedStay))) throw checkoutCustomerError('Het hotel kon de volledige voorwaarden nog niet bevestigen.');
-        const review = mottoDecember && offer ? {...offer,changes:[...mottoDifferences(acceptedStay,offer.terms),...offer.changes.filter(c=>['extras','hotel_notes'].includes(c.field))]} : offer;
-        const approved = await reviewHotelNotes(data.hotel_notes,review,mottoDecember?acceptedStay:null);
-        if(approved && mottoDecember && offer) acceptedStay=offer.terms;
-        if (!approved) {
-          recordBookingJourney(journey,'cancelled',request);
-          showBookingMessage('Je hebt nog niet geboekt of betaald.', 'info');
-          checkoutBusy=false;setFlexibleBusy(false);button.disabled=false;button.innerHTML='Bekijk beschikbaarheid & boek <span>→</span>';
-          return;
+      let displayedDeal = deal;
+      let acknowledgedTerms = null;
+      for (let reviews = 0; supplier; reviews++) {
+        const staleQuote = !mottoDecember && stayCapability?.mode !== 'free-calendar' && response.status === 400 && ['Approved production quote required', 'No approved, margin-safe production offer is available'].includes(data?.message);
+        const changed = response.ok && data?.status === 'offer_changed' && data.checkout_created === false;
+        const notes = response.ok && data?.status === 'hotel_notes_review' && data.checkout_created === false;
+        if (!notes && !changed && !staleQuote) break;
+        if (reviews >= 4) {
+          await reviewHotelNotes('Het aanbod blijft wijzigen. Sluit dit venster en controleer opnieuw.', null, null, true);
+          throw checkoutCustomerError('Controleer de beschikbaarheid opnieuw.', 'changed');
         }
-        if(offer) acceptedCheckoutPrice=offer.terms.price;
+        let ack;
+        if (notes) {
+          failureCode = null;
+          if (typeof data.hotel_notes !== 'string' || data.hotel_notes.length > 70000 || typeof data.hotel_notes_ack !== 'string' || data.hotel_notes_ack.length > 150000) throw checkoutCustomerError('De aanvullende hotelinformatie kon niet worden geladen.');
+          const offer=data.offer_review;
+          if (offer && (!offer.terms || offer.terms.deal_id!==Number(deal.id) || offer.terms.currency!=='EUR' || !Number.isFinite(offer.terms.price) || offer.terms.price<=0 || !Array.isArray(offer.changes) || !Array.isArray(offer.terms.local_fees))) throw checkoutCustomerError('De actuele voorwaarden konden niet worden gecontroleerd.');
+          if (mottoDecember && offer && (!validMottoOffer(offer.terms) || !validMottoOffer(acceptedStay))) throw checkoutCustomerError('Het hotel kon de volledige voorwaarden nog niet bevestigen.');
+          const previousStay = acceptedStay || acknowledgedTerms;
+          const review = offer && validMottoOffer(previousStay) && validMottoOffer(offer.terms)
+            ? {...offer,changes:[...mottoDifferences(previousStay, offer.terms), ...offer.changes.filter(c=>!['room','board','price','local_fees','cancellation'].includes(c.field))]}
+            : offer;
+          const approved = await reviewHotelNotes(data.hotel_notes,review,previousStay || {price:acceptedCheckoutPrice,room:displayedDeal.room || displayedDeal.room_type,board:displayedDeal.board,cancellation:displayedDeal.cancellation_policy});
+          if(approved && mottoDecember && offer) acceptedStay=offer.terms;
+          if (!approved) {
+            recordBookingJourney(journey,'cancelled',request);
+            showBookingMessage('Je hebt nog niet geboekt of betaald.', 'info');
+            checkoutBusy=false;setFlexibleBusy(false);button.disabled=false;button.innerHTML='Bekijk beschikbaarheid & boek <span>→</span>';
+            return;
+          }
+          if (offer) {
+            acceptedCheckoutPrice = offer.terms.price;
+            acknowledgedTerms = offer.terms;
+          }
+          ack = data.hotel_notes_ack;
+        } else {
+          failureCode = null;
+          const updated = await refreshedFixedDeal(request, displayedDeal, mottoDecember || stayCapability?.mode === 'free-calendar');
+          if (!updated) {
+            await reviewHotelNotes('Het hotel kan de actuele prijs en voorwaarden voor dit verblijf nog niet bevestigen. Sluit dit venster om terug te gaan naar de deal.', null, null, true);
+            throw checkoutCustomerError('Het actuele aanbod is nog niet bevestigd.', 'changed');
+          }
+          const changes = fixedDealChanges(displayedDeal, updated);
+          if (changes.length && !await reviewHotelNotes('', {terms:updated, changes}, {})) {
+            throw checkoutCustomerError('Je hebt de wijziging niet geaccepteerd. Er is niets betaald.', 'cancelled');
+          }
+          displayedDeal = updated;
+          acknowledgedTerms = null;
+          acceptedCheckoutPrice = Number(updated.deal_price || updated.price);
+          request.expected_terms = checkoutDisplayedTerms(updated);
+        }
         failureCode = 'CHECKOUT_NETWORK';
-        response = await recoverSupplierCheckout(request, data.hotel_notes_ack);
-        failureStatus=response.status;failureCode=response.ok?'CHECKOUT_RESPONSE':'CHECKOUT_HTTP';
-        responseText=await response.text();
-        try {data=responseText?JSON.parse(responseText):{};} catch {data={};}
-        if (response.ok && data?.status === 'hotel_notes_review' && data.checkout_created === false) {
-          failureCode=null;
-          throw checkoutCustomerError('De hotelinformatie is opnieuw gewijzigd. Bekijk de actuele informatie door opnieuw op boeken te klikken.');
-        }
+        response = await recoverSupplierCheckout(request, ack);
+        failureStatus = response.status;
+        failureCode = response.ok ? 'CHECKOUT_RESPONSE' : 'CHECKOUT_HTTP';
+        responseText = await response.text();
+        try { data = responseText ? JSON.parse(responseText) : {}; } catch { data = {}; }
       }
       if (supplier && !response.ok && response.status === 403 && data?.message === "PRODUCTION_NOT_RELEASED") {
         failureCode = null;
         // This precise entry-gate rejection happens before any order or Stripe write.
         try { sessionStorage.removeItem(supplierStorageKey(deal.id)); } catch (_) {}
         throw checkoutCustomerError("Deze hoteldeal is nog niet beschikbaar om te boeken.");
-      }
-      if (supplier && response.ok && data?.status === "offer_changed" && data.checkout_created === false) {
-        failureCode = null;
-        try { sessionStorage.removeItem(supplierStorageKey(deal.id)); } catch (_) {}
-        throw checkoutCustomerError("De prijs of voorwaarden zijn gewijzigd. Laad de deal opnieuw en bekijk het actuele aanbod voordat je boekt.");
       }
       if (!response.ok) throw checkoutCustomerError("Boeken lukt op dit moment niet. Probeer het later opnieuw of neem contact op met SeasonDeals.");
       const checkoutUrl = data?.checkout_url || data?.url || data?.session_url || data?.session?.url || data?.api1?.response?.url || data?.api1?.response?.result?.url;
@@ -338,7 +365,42 @@ function dealAmenityDetail(label, detail) {
     }
   }
 
-  function reviewHotelNotes(raw,offer,selectedStay=null) {
+  async function refreshedFixedDeal(request, before, calendar) {
+    if (calendar) return null;
+    try {
+      const options = {cache:'no-store',credentials:'omit',signal:AbortSignal.timeout(45000)};
+      const status = await fetch(CONFIG.dealsEndpoint.replace(/\/deals$/, '/supplier/production/availability-status'), {
+        ...options,method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({deal_id:request.deal_id})
+      });
+      if (!status.ok || (await status.json()).available !== true) return null;
+      const response = await fetch(CONFIG.dealsEndpoint + '/' + encodeURIComponent(request.deal_id), options);
+      if (!response.ok) return null;
+      const data = await response.json(), next = data?.deal || data;
+      if (Number(next?.id) !== request.deal_id || next.source !== 'provider_sync' || !isPublicDeal(next)
+          || next.booking_enabled !== true || next.price_is_current === false || !(Number(next.deal_price || next.price) > 0)
+          || next.travel_period_start !== before.travel_period_start || next.travel_period_end !== before.travel_period_end
+          || next.max_guests !== before.max_guests || next.minimum_nights !== before.minimum_nights) return null;
+      return next;
+    } catch { return null; }
+  }
+
+  function fixedDealChanges(before, after) {
+    const fields = [
+      ['price','Online te betalen',d=>Number(d.deal_price||d.price)],
+      ['room','Kamer',d=>d.room||d.room_type], ['board','Verzorging',d=>d.board],
+      ['cancellation','Annuleringsvoorwaarden',d=>d.cancellation_policy],
+      ['local_fees','Ter plaatse te betalen',d=>d.local_fees || []],
+      ['title','Aanbieding',d=>d.title], ['short_description','Verblijf',d=>d.short_description],
+      ['long_description','Omschrijving',d=>d.long_description],
+      ...[['includes_breakfast','Ontbijt'],['includes_wifi','Wifi'],['includes_parking','Parkeren'],
+          ['includes_late_checkout','Late check-out'],['includes_welcome_drink','Welkomstdrankje']]
+        .map(([field,label])=>[field,label,d=>d[field]?'Inbegrepen':'Niet als inbegrepen vermeld'])
+    ];
+    return fields.map(([field,label,get])=>({field,label,before:get(before),after:get(after)}))
+      .filter(change=>JSON.stringify(change.before)!==JSON.stringify(change.after));
+  }
+
+  function reviewHotelNotes(raw,offer,selectedStay=null,informationOnly=false) {
     return new Promise(resolve => {
       const plain=value=>{const decoder=document.createElement('textarea');decoder.innerHTML=String(value||'').replace(/<(?:br\s*\/?|\/p|\/div|\/li)>/gi,'\n').replace(/<[^>]*>/g,'');return decoder.value.trim();};
       const normalize=value=>plain(value).replace(/\s+/g,' ').trim();
@@ -429,7 +491,8 @@ function dealAmenityDetail(label, detail) {
       const finish=accepted=>{dialog.close();dialog.remove();resolve(accepted);};
       cancel.addEventListener('click',()=>finish(false));next.addEventListener('click',()=>finish(true));
       dialog.addEventListener('cancel',event=>{event.preventDefault();finish(false);});
-      actions.append(cancel,next);dialog.append(title,notes,actions);document.body.append(dialog);dialog.showModal();cancel.focus();
+      if (informationOnly) actions.append(cancel); else actions.append(cancel,next);
+      dialog.append(title,notes,actions);document.body.append(dialog);dialog.showModal();cancel.focus();
     });
   }
 
