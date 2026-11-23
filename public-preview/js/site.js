@@ -422,7 +422,7 @@
         <div class="deal-partner">${escapeHtml(hotel)}</div>
         ${rating > 0 ? `<div class="rating"><span>★</span> ${escapeHtml(formatDecimal(rating))}${reviews > 0 ? ` · ${escapeHtml(formatNumber(reviews))} beoordelingen` : ""}</div>` : ""}
         <ul>${features.length ? features.map((feature) => `<li>✓ ${escapeHtml(feature)}</li>`).join("") : `<li>Bekijk de deal voor alle details</li>`}</ul>
-        <div class="price-row"><span>${!checking && !flexible && originalPrice > price ? `<del>${escapeHtml(formatCurrency(originalPrice))}</del>` : ""}<strong>${flexible ? "Prijs ophalen…" : `${checking ? "Laatst bekend" : "Vanaf"} ${escapeHtml(formatCurrency(price))}`}</strong><small>${checking ? "Prijs en beschikbaarheid worden bijgewerkt" : flexible ? "Controleer prijs en beschikbaarheid" : remaining === null ? "Bekijk de actuele beschikbaarheid" : `Actuele voorraad: ${formatNumber(remaining)}`}</small></span><div class="deal-card-cta">Bekijk deal →</div></div>
+        <div class="price-row"><span>${!checking && !flexible && originalPrice > price ? `<del>${escapeHtml(formatCurrency(originalPrice))}</del>` : ""}<strong>${flexible ? "Prijs ophalen…" : `${checking ? "Laatst bekend" : "Prijs"} ${escapeHtml(formatCurrency(price))}`}</strong><small>${checking ? "Prijs en beschikbaarheid worden bijgewerkt" : flexible ? "Controleer prijs en beschikbaarheid" : remaining === null ? "Bekijk de actuele beschikbaarheid" : `Actuele voorraad: ${formatNumber(remaining)}`}</small></span><div class="deal-card-cta">Bekijk deal →</div></div>
       </div>`;
     return card;
   }
@@ -473,7 +473,7 @@
     const quote=await getCardQuote(deal);
     if(!card.isConnected)return;
     if(!quote || quote.valid_until<=Date.now()){reset();return;}
-    badge.textContent='Beschikbaar';price.textContent=`Vanaf ${formatCurrency(quote.price)}`;
+    badge.textContent='Beschikbaar';price.textContent=`Prijs ${formatCurrency(quote.price)}`;
     const day=s=>new Intl.DateTimeFormat(CONFIG.locale,{day:'numeric',month:'short',timeZone:'UTC'}).format(new Date(s+'T00:00:00Z'));
     caption.textContent=`${quote.nights} ${quote.nights===1?'nacht':'nachten'} · ${quote.guests} personen · ${day(quote.checkin)}–${day(quote.checkout)}`;
     // Expired quotes are never left behind as a current price or stock claim.
