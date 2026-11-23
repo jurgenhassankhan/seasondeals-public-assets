@@ -472,6 +472,25 @@ function dealAmenityDetail(label, detail) {
         .replace(/per night/gi,'per nacht').replace(/per day/gi,'per dag');
       const paragraph=(label,value)=>{const row=document.createElement('p'),strong=document.createElement('strong');strong.textContent=label;row.append(strong,document.createTextNode(' '+dutch(value)));notes.append(row);};
       if(offer){
+        if (offer.changes.some(change => ['price', 'local_fees'].includes(change.field))) {
+          const priceChange = offer.changes.find(change => change.field === 'price');
+          const feeChange = offer.changes.find(change => change.field === 'local_fees');
+          const currentPrice = offer.terms.deal_price ?? offer.terms.price;
+          const currentFees = offer.terms.local_fees;
+          const total = (price, fees) => {
+            if (!Number.isFinite(price) || price <= 0 || !Array.isArray(fees) ||
+                !fees.every(fee => fee?.currency === 'EUR' && Number.isFinite(fee.amount) && fee.amount >= 0)) return null;
+            return (Math.round(price * 100) + fees.reduce((sum, fee) => sum + Math.round(fee.amount * 100), 0)) / 100;
+          };
+          const previous = total(priceChange ? priceChange.before : currentPrice, feeChange ? feeChange.before : currentFees);
+          const current = total(currentPrice, currentFees);
+          if (current !== null) {
+            paragraph('Totaal voor je verblijf', previous !== null && previous !== current
+              ? formatCurrency(previous) + ' → ' + formatCurrency(current) : formatCurrency(current));
+            paragraph('Online te betalen', formatCurrency(currentPrice));
+            paragraph('Ter plaatse te betalen', formatCurrency(current - currentPrice));
+          }
+        }
         const sentences=value=>plain(value).split(/\n+|(?<=[.!?])\s+(?=[A-ZÀ-ÖØ-Þ])/u).map(s=>s.trim()).filter(Boolean);
         for(const change of offer.changes){
           if(change.field==='price')paragraph(change.label+':',formatCurrency(change.before)+' → '+formatCurrency(change.after));
@@ -598,7 +617,7 @@ function dealAmenityDetail(label, detail) {
     let quickSignature='',quickTimer;
     function quickOptions(){
       const now=Date.now();
-      return Array.from(cache.values()).filter(r=>[33,36,41].includes(Number(deal.id))&&r.status==='available'&&r.checkin>=policy.start&&r.checkout>r.checkin&&r.guests===policy.guests&&Number.isFinite(r.options?.[0]?.price)&&r.options[0].price>0&&Array.isArray(r.options[0].local_fees)&&Number.isFinite(r.price_checked_at||r.checked_at)&&(r.price_checked_at||r.checked_at)<=now&&now-(r.price_checked_at||r.checked_at)<600000)
+      return Array.from(cache.values()).filter(r=>[33,36,41,52].includes(Number(deal.id))&&r.status==='available'&&r.checkin>=policy.start&&r.checkout>r.checkin&&r.guests===policy.guests&&Number.isFinite(r.options?.[0]?.price)&&r.options[0].price>0&&Array.isArray(r.options[0].local_fees)&&Number.isFinite(r.price_checked_at||r.checked_at)&&(r.price_checked_at||r.checked_at)<=now&&now-(r.price_checked_at||r.checked_at)<600000)
         .sort((a,b)=>a.checkin.localeCompare(b.checkin)||a.checkout.localeCompare(b.checkout)).slice(0,3);
     }
     function renderQuickStays(){
@@ -800,10 +819,10 @@ function dealAmenityDetail(label, detail) {
     });
   }
   function validStayDay(value) {return typeof value==='string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value+'T00:00:00Z')) && new Date(value+'T00:00:00Z').toISOString().slice(0,10)===value;}
-  function validStayPolicy(p,id) {if(p?.mode==='free-calendar')return p.enabled===true&&p.deal_id===id&&[33,36,41].includes(id)&&p.can_book===true&&validStayDay(p.start)&&p.end===null&&p.min_nights===1&&p.max_nights===null&&Number.isInteger(p.guests)&&p.guests>=1&&p.guests<=6&&typeof p.expected_terms==='string';return !!p && p.enabled===true && p.deal_id===id && p.can_book===false && validStayDay(p.start) && validStayDay(p.end) && p.start<p.end && Number.isInteger(p.min_nights) && Number.isInteger(p.max_nights) && p.min_nights>=1 && p.max_nights>=p.min_nights && p.max_nights<=30 && Number.isInteger(p.guests) && p.guests>=1 && p.guests<=6;}
+  function validStayPolicy(p,id) {if(p?.mode==='free-calendar')return p.enabled===true&&p.deal_id===id&&[33,36,41,52].includes(id)&&p.can_book===true&&validStayDay(p.start)&&p.end===null&&p.min_nights===1&&p.max_nights===null&&Number.isInteger(p.guests)&&p.guests>=1&&p.guests<=6&&typeof p.expected_terms==='string';return !!p && p.enabled===true && p.deal_id===id && p.can_book===false && validStayDay(p.start) && validStayDay(p.end) && p.start<p.end && Number.isInteger(p.min_nights) && Number.isInteger(p.max_nights) && p.min_nights>=1 && p.max_nights>=p.min_nights && p.max_nights<=30 && Number.isInteger(p.guests) && p.guests>=1 && p.guests<=6;}
   function validStayDates(p,a,b) {const nights=(Date.parse(b)-Date.parse(a))/86400000;return validStayDay(a)&&validStayDay(b)&&a>=p.start&&b<=p.end&&nights>=p.min_nights&&nights<=p.max_nights;}
   function validStayResult(r,id,a,b,guests,now=Date.now()) {
-    return !!r && r.deal_id===id && r.checkin===a && r.checkout===b && r.guests===guests && r.nights===(Date.parse(b)-Date.parse(a))/86400000 && r.currency==='EUR' && (r.can_book===false||[33,36,41].includes(id)&&r.can_book===true) && Number.isFinite(r.checked_at) && Number.isFinite(r.valid_until) && r.checked_at<=now+5000 && r.valid_until>now && r.valid_until>r.checked_at && r.valid_until-r.checked_at<=60000 && Array.isArray(r.options) && r.options.length<=6 && ['available','unavailable','unknown','price_review_required'].includes(r.status) && (r.status==='available'?r.options.length>0:r.options.length===0) && r.options.every(o=>o && typeof o.room==='string' && typeof o.board==='string' && typeof o.cancellation==='string' && Number.isFinite(o.price)&&o.price>0);
+    return !!r && r.deal_id===id && r.checkin===a && r.checkout===b && r.guests===guests && r.nights===(Date.parse(b)-Date.parse(a))/86400000 && r.currency==='EUR' && (r.can_book===false||[33,36,41,52].includes(id)&&r.can_book===true) && Number.isFinite(r.checked_at) && Number.isFinite(r.valid_until) && r.checked_at<=now+5000 && r.valid_until>now && r.valid_until>r.checked_at && r.valid_until-r.checked_at<=60000 && Array.isArray(r.options) && r.options.length<=6 && ['available','unavailable','unknown','price_review_required'].includes(r.status) && (r.status==='available'?r.options.length>0:r.options.length===0) && r.options.every(o=>o && typeof o.room==='string' && typeof o.board==='string' && typeof o.cancellation==='string' && Number.isFinite(o.price)&&o.price>0);
   }
 
   // BEGIN DISPLAYED CHECKOUT TERMS
