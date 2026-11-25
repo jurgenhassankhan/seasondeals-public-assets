@@ -641,7 +641,12 @@ function dealAmenityDetail(label, detail) {
     let quickSignature='',quickTimer;
     function quickOptions(){
       const now=Date.now();
-      if(policy.mode==='fixed-options')return policy.options.map(o=>{const r=cache.get([o.checkin,o.checkout,policy.guests].join('|'));return r&&now>=(r.price_checked_at||r.checked_at)&&now-(r.price_checked_at||r.checked_at)<600000?r:{...o,guests:policy.guests,options:[]};});
+      if (policy.mode === 'fixed-options') return policy.options.map(option => {
+        const row = cache.get([option.checkin,option.checkout,policy.guests].join('|'));
+        const observed = row?.price_checked_at || row?.checked_at;
+        const expires = Math.min(row?.calendar_expires_at ?? observed+600000, observed+21600000);
+        return observed<=now && now<expires ? row : {...option,guests:policy.guests,options:[]};
+      });
       return Array.from(cache.values()).filter(r=>[33,36,41,52,83].includes(Number(deal.id))&&r.status==='available'&&r.checkin>=policy.start&&r.checkout>r.checkin&&r.guests===policy.guests&&Number.isFinite(r.options?.[0]?.price)&&r.options[0].price>0&&Array.isArray(r.options[0].local_fees)&&Number.isFinite(r.price_checked_at||r.checked_at)&&(r.price_checked_at||r.checked_at)<=now&&now-(r.price_checked_at||r.checked_at)<600000)
         .sort((a,b)=>a.checkin.localeCompare(b.checkin)||a.checkout.localeCompare(b.checkout)).slice(0,3);
     }
