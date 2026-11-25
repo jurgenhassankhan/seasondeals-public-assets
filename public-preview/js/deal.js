@@ -43,7 +43,12 @@ function dealAmenityDetail(label, detail) {
   }
   function mottoDifferences(before,after) {
     const labels={room:'Kamer',board:'Verzorging',price:'Online te betalen',local_fees:'Ter plaatse te betalen',cancellation:'Annuleringsvoorwaarden'};
-    const comparable=(key,v)=>key==='local_fees'?JSON.stringify(v.map(f=>[f.description,f.amount,f.currency]).sort()):String(v).trim();
+    const comparable = (key,value) => {
+      if (key === 'local_fees') return JSON.stringify(value.map(f=>[f.description,f.amount,f.currency]).sort());
+      const label = String(value).trim();
+      if (key === 'board' && /^(breakfast included|ontbijt inbegrepen)$/i.test(label)) return 'Ontbijt inbegrepen';
+      return label;
+    };
     return Object.keys(labels).filter(k=>comparable(k,before[k])!==comparable(k,after[k])).map(k=>({field:k,label:labels[k],before:before[k],after:after[k]}));
   }
   let deal = null;

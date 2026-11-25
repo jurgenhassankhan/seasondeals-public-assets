@@ -338,8 +338,8 @@
       return categoryMatch && (!locationQuery || haystack.includes(locationQuery)) && matchesSearchStay(deal, searchStay);
     }).sort((a, b) => {
       // Sort the whole selection before pagination; unpriced offers come last.
-      const priceA = a.stay_policy?.enabled ? Infinity : getPositiveNumber(a.deal_price, a.price) || Infinity;
-      const priceB = b.stay_policy?.enabled ? Infinity : getPositiveNumber(b.deal_price, b.price) || Infinity;
+      const priceA = a.stay_policy?.enabled && a.stay_policy.mode !== 'fixed-options' ? Infinity : getPositiveNumber(a.deal_price, a.price) || Infinity;
+      const priceB = b.stay_policy?.enabled && b.stay_policy.mode !== 'fixed-options' ? Infinity : getPositiveNumber(b.deal_price, b.price) || Infinity;
       return priceA - priceB || String(a.id).localeCompare(String(b.id), "en", { numeric: true });
     });
 
