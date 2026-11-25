@@ -186,6 +186,7 @@
     if (searchDateError(stay.checkin, stay.checkout, "0000-00-00")) return false;
     const policy = deal.stay_policy;
     const nights = (Date.parse(stay.checkout)-Date.parse(stay.checkin))/86400000;
+    if(policy?.enabled===true&&policy.mode==='fixed-options')return policy.options.some(o=>o.checkin===stay.checkin&&o.checkout===stay.checkout);
     if (policy?.enabled === true) {
       return !!searchDate(policy.start) && !!searchDate(policy.end) &&
         stay.checkin >= policy.start && stay.checkout <= policy.end &&
@@ -355,7 +356,7 @@
     const start = (currentPage - 1) * DEALS_PER_PAGE;
     filtered.slice(start, start + DEALS_PER_PAGE).forEach((deal) => {
       const card=createDealCard(deal);grid.appendChild(card);
-      if(deal.source==='provider_sync' && deal.stay_policy?.enabled===true) fillCardQuote(card,deal);
+      if(deal.source==='provider_sync' && deal.stay_policy?.enabled===true && deal.stay_policy.mode!=='fixed-options') fillCardQuote(card,deal);
     });
   }
 
@@ -389,7 +390,8 @@
   }
 
   function createDealCard(deal) {
-    const flexible = deal.source === "provider_sync" && deal.stay_policy?.enabled === true;
+    const fixedDates=deal.stay_policy?.enabled===true&&deal.stay_policy.mode==='fixed-options';
+    const flexible = deal.source === "provider_sync" && deal.stay_policy?.enabled === true&&!fixedDates;
     const category = getCategory(deal);
     const title = text(deal.title || deal.name, "SeasonDeals deal");
     const image = getImage(deal);
@@ -414,16 +416,16 @@
       <div class="deal-image">
         ${image ? `<img src="${escapeAttribute(image)}" alt="${escapeAttribute(title)}" loading="lazy">` : `<div class="deal-image-placeholder"><span>SeasonDeals</span><small>Hot offers, cool prices</small></div>`}
         ${discount ? `<span class="discount">-${discount}%</span>` : ""}
-        ${flexible ? '<span class="stock-badge">Wordt gecontroleerd</span>' : deal.source === "provider_sync" ? `<span class="stock-badge">${checking ? "Bekijk beschikbaarheid" : "Beschikbaar"}</span>` : remaining !== null ? `<span class="stock-badge${remaining <= 5 ? " is-low" : ""}">${remaining === 0 ? "Uitverkocht" : `Nog ${formatNumber(remaining)} beschikbaar`}</span>` : ""}
+        ${fixedDates?'<span class="stock-badge">Kies jouw verblijf</span>':flexible ? '<span class="stock-badge">Wordt gecontroleerd</span>' : deal.source === "provider_sync" ? `<span class="stock-badge">${checking ? "Bekijk beschikbaarheid" : "Beschikbaar"}</span>` : remaining !== null ? `<span class="stock-badge${remaining <= 5 ? " is-low" : ""}">${remaining === 0 ? "Uitverkocht" : `Nog ${formatNumber(remaining)} beschikbaar`}</span>` : ""}
       </div>
       <div class="deal-card-body">
         <span class="deal-type">${escapeHtml(formatCategory(category))}${city ? ` · ${escapeHtml(city)}` : ""}</span>
         <h3>${escapeHtml(title)}</h3>
         <div class="deal-partner">${escapeHtml(hotel)}</div>
         ${rating > 0 ? `<div class="rating"><span>★</span> ${escapeHtml(formatDecimal(rating))}${reviews > 0 ? ` · ${escapeHtml(formatNumber(reviews))} beoordelingen` : ""}</div>` : ""}
-        ${deal.source === "provider_sync" && ([33,52].includes(Number(deal.id)) || flexible) ? '<p class="deal-partner">Kies zelf je aankomst- en vertrekdatum</p>' : ""}
+        ${fixedDates?'<p class="deal-partner">Keuze uit vaste verblijven</p>':deal.source === "provider_sync" && ([33,52].includes(Number(deal.id)) || flexible) ? '<p class="deal-partner">Kies zelf je aankomst- en vertrekdatum</p>' : ""}
         <ul>${features.length ? features.map((feature) => `<li>✓ ${escapeHtml(feature)}</li>`).join("") : `<li>Bekijk de deal voor alle details</li>`}</ul>
-        <div class="price-row"><span>${!checking && !flexible && originalPrice > price ? `<del>${escapeHtml(formatCurrency(originalPrice))}</del>` : ""}<strong>${flexible ? "Prijs ophalen…" : `Prijs ${escapeHtml(formatCurrency(price))}`}</strong><small>${flexible ? "Controleer prijs en beschikbaarheid" : remaining === null ? "Bekijk de actuele beschikbaarheid" : `Actuele voorraad: ${formatNumber(remaining)}`}</small></span><div class="deal-card-cta">Bekijk deal →</div></div>
+        <div class="price-row"><span>${!checking && !flexible && originalPrice > price ? `<del>${escapeHtml(formatCurrency(originalPrice))}</del>` : ""}<strong>${fixedDates?(price?`Prijs ${escapeHtml(formatCurrency(price))}`:"Bekijk prijzen"):flexible ? "Prijs ophalen…" : `Prijs ${escapeHtml(formatCurrency(price))}`}</strong><small>${fixedDates&&deal.display_stay?escapeHtml(new Intl.DateTimeFormat("nl-NL",{day:"numeric",month:"short",timeZone:"UTC"}).format(new Date(deal.display_stay.checkin))+" – "+new Intl.DateTimeFormat("nl-NL",{day:"numeric",month:"short",timeZone:"UTC"}).format(new Date(deal.display_stay.checkout))+" · 2 personen"):flexible ? "Controleer prijs en beschikbaarheid" : remaining === null ? "Bekijk de actuele beschikbaarheid" : `Actuele voorraad: ${formatNumber(remaining)}`}</small></span><div class="deal-card-cta">Bekijk deal →</div></div>
       </div>`;
     return card;
   }
@@ -503,7 +505,8 @@
       const nights = getNumber(deal.minimum_nights);
       const guests = getNumber(deal.max_guests);
       const stay = [];
-      if (deal.source === "provider_sync" && deal.stay_policy?.enabled === true) stay.push(`${deal.stay_policy.min_nights}–${deal.stay_policy.max_nights} nachten naar keuze`);
+      if(deal.stay_policy?.mode==='fixed-options')stay.push(`${nights} ${nights===1?'overnachting':'overnachtingen'} · ${deal.stay_policy.options.length} datumopties`);
+      else if (deal.source === "provider_sync" && deal.stay_policy?.enabled === true) stay.push(`${deal.stay_policy.min_nights}–${deal.stay_policy.max_nights} nachten naar keuze`);
       else if (Number.isInteger(nights) && nights > 0) stay.push(`${deal.source === "provider_sync" ? "" : "Vanaf "}${nights} ${nights === 1 ? "overnachting" : "overnachtingen"}`);
       if (Number.isInteger(guests) && guests > 0) stay.push(`${deal.source === "provider_sync" ? "Voor" : "Tot"} ${guests} ${guests === 1 ? "persoon" : "personen"}`);
       if (stay.length) features.push(stay.join(" · "));
@@ -554,3 +557,4 @@
     showToast.timer = setTimeout(() => toast.classList.remove("is-visible"), 3500);
   }
 })();
+

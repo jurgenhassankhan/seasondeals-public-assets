@@ -12,3 +12,21 @@
 /* QUICK-STAYS-20261102: only inside the existing booking card. */
 .sd-quick-stays{margin:18px 0 20px;padding-bottom:18px;border-bottom:1px solid var(--line,#ddd)}.sd-quick-stays h3,.sd-week-calendar .sd-other-dates{margin:0 0 8px;font:700 20px/1.2 var(--serif,serif);color:var(--green,#042821)}.sd-week-calendar .sd-quick-intro{margin:0 0 12px;font-size:11px;color:var(--muted,#60716a)}.sd-quick-list{display:grid;gap:8px}.sd-quick-option{display:flex;align-items:center;gap:8px;width:100%;min-height:72px;padding:12px 10px;text-align:left;border:1px solid var(--line,#ddd);border-radius:10px;background:#fff;color:var(--green,#042821);font-family:inherit;cursor:pointer;box-sizing:border-box}.sd-quick-option>span:first-child{flex:1;min-width:0}.sd-quick-option strong{display:block;font-size:12px;line-height:1.4}.sd-quick-option small{display:block;font-size:10px;font-weight:400;line-height:1.5;overflow-wrap:anywhere}.sd-quick-price{text-align:right;flex-shrink:0}.sd-quick-price strong{font-size:15px}.sd-quick-option:hover,.sd-quick-option.is-selected{background:#eff6f3;border-color:var(--green,#042821)}.sd-quick-option:disabled{opacity:.65}.sd-quick-stays>small{display:block;margin-top:10px;color:var(--muted,#60716a);font-size:10px;line-height:1.5}
 
+
+
+.fixed-weekend-deal.detail-container { max-width: 1160px; }
+.fixed-weekend-deal .detail-heading-actions, .fixed-weekend-deal .detail-heading .detail-subline { display: none; }
+.fixed-weekend-deal .detail-heading h1 { max-width: 880px; }
+.fixed-weekend-deal .detail-gallery { height: clamp(280px,39vw,480px); grid-template-columns: 1.85fr 1fr; }
+.fixed-weekend-deal .detail-layout { grid-template-columns: minmax(0,1.6fr) minmax(340px,1fr); gap: clamp(24px,5vw,65px); }
+.fixed-weekend-deal .booking-card.has-week-calendar { width: 100%; max-width: none; min-width: 0; }
+.fixed-weekend-deal .sd-quick-option[aria-pressed=true] { border-color: #123e35; background: #edf5f2; }
+.fixed-weekend-deal [hidden] { display: none !important; }
+@media (max-width: 900px) {
+  .fixed-weekend-deal .detail-layout { grid-template-columns: 1fr; }
+  .fixed-weekend-deal .booking-card { grid-row: 1; }
+  .fixed-weekend-deal .detail-heading h1 { font-size: clamp(35px,7vw,52px); }
+}
+@media (max-width: 650px) {
+  .fixed-weekend-deal .detail-gallery { height: 260px; grid-template-columns: 1fr; }
+}
