@@ -654,7 +654,14 @@ function dealAmenityDetail(label, detail) {
       const r=quickOptions().find(r=>r.checkin===button.dataset.quickArrival&&r.checkout===button.dataset.quickDeparture);
       if(!r){renderQuickStays();return;}
       nights=Math.round((Date.parse(r.checkout)-Date.parse(r.checkin))/86400000);nightsInput.value=String(nights);start=r.checkin;startInput.value=start;
-      selectDay(r.checkin);check.click();
+      selectDay(r.checkin);
+      if (!fixedOptions) { check.click(); return; }
+      check.textContent = r.status === 'available' ? 'Verder naar betalen →' : 'Controleer beschikbaarheid';
+      if (r.status === 'unavailable') check.disabled = true;
+      const offer = r.options?.[0];
+      if (offer && validMottoOffer(offer)) {
+        result.innerHTML = '<details><summary>Annuleringsvoorwaarden bekijken</summary><p>'+escapeHtml(offer.cancellation)+'</p></details>';
+      }
     });
     function clearQuote(){quoteGeneration++;chosen=null;selectedOffer=null;clearTimeout(expiry);book.hidden=true;book.style.display='none';book.disabled=true;result.textContent='';showBookingMessage('','info');}
     function clearSelection(){clearQuote();selected='';arrival.value='';departure.value='';selection.hidden=true;check.hidden=true;check.disabled=false;}
@@ -746,7 +753,10 @@ function dealAmenityDetail(label, detail) {
     function changeDeparture(){if(selected===arrival.value&&departure.value===dateAdd(selected,nights))return;changeDates();}
     for(const event of ['input','change']){arrival.addEventListener(event,changeArrival);departure.addEventListener(event,changeDeparture);}
     check.addEventListener('click',async()=>{
-      if(checkoutBusy||!selected)return;stopRetry();pendingDays.clear();generation++;loading=false;clearTimeout(debounce);clearQuote();const id=quoteGeneration,d=selected;check.disabled=true;result.textContent='Prijs ophalen… Even geduld a.u.b.';
+      if(checkoutBusy||!selected)return;
+      const displayedOption = fixedOptions ? entry(selected)?.options?.[0] : null;
+      const continueToPayment = fixedOptions && validMottoOffer(displayedOption) && check.textContent === 'Verder naar betalen →';
+      stopRetry();pendingDays.clear();generation++;loading=false;clearTimeout(debounce);clearQuote();const id=quoteGeneration,d=selected;check.disabled=true;result.textContent='Prijs ophalen… Even geduld a.u.b.';
       try{const r=await request(d,false);if(id!==quoteGeneration||!ui.isConnected)return;
         if(r.status!=='available'){
           if(fixedOptions){
@@ -777,6 +787,11 @@ function dealAmenityDetail(label, detail) {
           result.innerHTML='<p><strong>'+cash(o.price)+' totaal</strong> · '+escapeHtml(o.room)+' · '+escapeHtml(o.board)+'</p><details><summary>Annuleringsvoorwaarden bekijken</summary><p>'+escapeHtml(o.cancellation)+'</p></details>'+o.local_fees.map(f=>'<p>'+escapeHtml(f.description)+': '+cash(f.amount)+' ter plaatse</p>').join('');
         }
         check.hidden=true;book.hidden=false;book.style.display='';book.disabled=false;book.innerHTML='Verder naar betalen <span>→</span>';
+        if (continueToPayment) {
+          const changes = mottoDifferences(displayedOption,o);
+          if (changes.length && !await reviewHotelNotes('',{terms:o,changes},displayedOption)) return;
+          if (id===quoteGeneration && r.valid_until>Date.now()) form.requestSubmit(book);
+        }
         expiry=setTimeout(()=>{if(id===quoteGeneration&&!checkoutBusy){clearQuote();check.hidden=false;check.disabled=false;result.textContent='Controleer de prijs opnieuw om verder te gaan.';}},Math.max(0,r.valid_until-Date.now()));
       }catch(e){if(id===quoteGeneration){result.textContent=e.message;await showHotelAlternative(id);}}
       finally{if(id===quoteGeneration)check.disabled=false;}
@@ -805,8 +820,10 @@ function dealAmenityDetail(label, detail) {
       for(const node of ui.children)if(![quick,selection,check,result].includes(node)&&node.tagName!=='H2'&&!node.classList.contains('sd-week-room'))node.style.display='none';
       quick.querySelector('h3').textContent='Beschikbare verblijven';
       quick.querySelector('.sd-quick-intro').hidden=true;
+      quick.querySelector(':scope > small').textContent='Bij het boeken controleren we de prijs en beschikbaarheid opnieuw.';
       arrival.readOnly=true;departure.readOnly=true;renderQuickStays();
-      const firstOption=quickList.querySelector('button');
+      const available = quickOptions().find(row=>row.status==='available');
+      const firstOption = available ? quickList.querySelector('[data-quick-arrival="'+available.checkin+'"]') : quickList.querySelector('button');
       if(firstOption)firstOption.click();
       return;
     }
@@ -851,6 +868,11 @@ function dealAmenityDetail(label, detail) {
         if(!validStayResult(result,Number(deal.id),checkin,checkout,policy.guests))throw new Error('Het antwoord past niet bij je gekozen verblijf. Controleer opnieuw.');
         if(result.status!=='available'){output.textContent=result.status==='unavailable'?'Geen passend aanbod voor deze datums. Kies andere datums.':'De prijs of beschikbaarheid is nog niet bevestigd. Probeer opnieuw.';return;}
         output.innerHTML=`<p><strong>${result.nights} ${result.nights===1?'nacht':'nachten'} · ${policy.guests} personen</strong></p>`+result.options.map(o=>`<div class="policy-card"><strong>${escapeHtml(formatCurrency(o.price))} totaal</strong><p>${escapeHtml(o.room)} · ${escapeHtml(o.board)}</p><p>${escapeHtml(o.cancellation)}</p></div>`).join('')+'<p>Boeken is binnenkort mogelijk. Dit is een actuele prijscontrole, geen reservering.</p>';
+        if (continueToPayment) {
+          const changes = mottoDifferences(displayedOption,o);
+          if (changes.length && !await reviewHotelNotes('',{terms:o,changes},displayedOption)) return;
+          if (id===quoteGeneration && r.valid_until>Date.now()) form.requestSubmit(book);
+        }
         expiry=setTimeout(()=>{if(id===generation){output.textContent='Deze prijscontrole is verlopen. Controleer opnieuw voor een actuele prijs.';}},Math.max(0,result.valid_until-Date.now()));
       } catch(error){if(id===generation)output.textContent=error.message;}
       finally {if(id===generation)button.disabled=false;}
