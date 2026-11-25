@@ -294,6 +294,13 @@
       if (!response.ok) throw new Error(`Xano gaf status ${response.status}.`);
       const data = await response.json();
       deals = resolveDeals(data).filter(isPublicDeal);
+      // One catalogue card per fixed-stay pilot; detail pages expose every date.
+      for (const ids of [[83,84,85,86]]) {
+        const options = deals.filter(d => ids.includes(Number(d.id)));
+        const usable = options.filter(d => d.price_is_current === true && d.booking_enabled === true);
+        const representative = (usable.length ? usable : options).sort((a,b) => Number(a.deal_price || a.price) - Number(b.deal_price || b.price))[0];
+        deals = deals.filter(d => !ids.includes(Number(d.id)) || d === representative);
+      }
       // Timestamps alone must not rebuild cards or steal keyboard focus.
       const snapshot = JSON.stringify(deals, (key,value) => /^(availability_checked_at|availability_valid_until|updated_at|last_synced_at)$/.test(key) ? undefined : value);
       if (snapshot !== dealsSnapshot) {
@@ -554,3 +561,4 @@
     showToast.timer = setTimeout(() => toast.classList.remove("is-visible"), 3500);
   }
 })();
+
