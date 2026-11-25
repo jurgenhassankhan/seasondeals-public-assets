@@ -31,11 +31,6 @@ function dealAmenityDetail(label, detail) {
   const container = document.getElementById("deal-detail");
   const cmsDealId = container?.dataset.sdDealId;
   const dealId = cmsDealId || new URLSearchParams(window.location.search).get("id");
-  // Approved fixed offers retain their own identity throughout checkout.
-  const fixedStayGroups = [[83, 84, 85, 86]];
-  const fixedStayGroup = fixedStayGroups.find(ids => ids.includes(Number(dealId)));
-  let fixedStayOffers = [];
-  let fixedStaySelected = Number(dealId);
   const mottoDecember = [36,41].includes(Number(dealId));
   const delftDecember = Number(dealId) === 41;
   const promoArrival = '2026-12-04', promoDeparture = '2026-12-05';
@@ -67,7 +62,6 @@ function dealAmenityDetail(label, detail) {
   loadDeal();
 
   async function loadDeal() {
-    if (fixedStayGroup) return loadFixedStayGroup();
     if (dealLoading) return;
     if (checkoutBusy) { clearTimeout(dealRetry); dealRetry=setTimeout(loadDeal,15000); return; }
     clearTimeout(dealRetry);
@@ -144,67 +138,6 @@ function dealAmenityDetail(label, detail) {
       }
       if (!previousDeal) showError("De deal kon niet worden geladen", "De controle is niet gelukt. Probeer opnieuw of bekijk onze andere deals.",true);
     } finally { dealLoading=false; }
-  }
-
-  async function loadFixedStayGroup() {
-    if (dealLoading || checkoutBusy || document.hidden) return;
-    dealLoading = true;
-    try {
-      const response = await fetch(CONFIG.dealsEndpoint, {cache:'no-store', credentials:'omit', signal:AbortSignal.timeout(15000)});
-      if (!response.ok) throw new Error('Fixed stays unavailable');
-      fixedStayOffers = resolveDeals(await response.json()).filter(d => fixedStayGroup.includes(Number(d.id)) && isPublicDeal(d) && d.source === 'provider_sync');
-      const selected = fixedStayOffers.find(d => Number(d.id) === fixedStaySelected) || fixedStayOffers.find(d => d.booking_enabled === true && d.price_is_current === true) || fixedStayOffers[0];
-      if (!selected) return showError('Deze verblijven zijn nu niet beschikbaar', 'Probeer het later opnieuw of bekijk onze andere deals.', true);
-      fixedStaySelected = Number(selected.id);
-      if (selected.price_is_current !== true) {
-        const statusResponse = await fetch(CONFIG.dealsEndpoint.replace(/\/deals$/, '/supplier/production/availability-status'), {method:'POST',credentials:'omit',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({deal_id:fixedStaySelected}),signal:AbortSignal.timeout(45000)});
-        if (statusResponse.ok && (await statusResponse.json()).available === true) {
-          const fresh = await fetch(`${CONFIG.dealsEndpoint}/${fixedStaySelected}`, {cache:'no-store',credentials:'omit',signal:AbortSignal.timeout(15000)});
-          const payload = fresh.ok ? await fresh.json() : null;
-          const updated = payload?.deal || payload;
-          if (Number(updated?.id) === fixedStaySelected && isPublicDeal(updated) && updated.source === 'provider_sync') {
-            fixedStayOffers = fixedStayOffers.map(d => Number(d.id) === fixedStaySelected ? updated : d);
-            return showFixedStay(updated);
-          }
-        }
-      }
-      showFixedStay(selected);
-    } catch (error) {
-      fixedStayOffers = fixedStayOffers.map(d => ({...d, price_is_current:false, booking_enabled:false}));
-      const previous = fixedStayOffers.find(d => Number(d.id) === fixedStaySelected);
-      if (previous) showFixedStay(previous);
-      else showError('De verblijven konden niet worden geladen', 'Probeer het opnieuw. Er is niets geboekt of betaald.', true);
-    } finally { dealLoading = false; }
-  }
-
-  function showFixedStay(selected) {
-    if (checkoutBusy) return;
-    // Do not rewrite commercial descriptions: the server compares these at checkout.
-    deal = selected;
-    stayCapability = null;
-    gallery = getImages(deal);
-    renderDeal();
-    bindDealEvents();
-    const card = container.querySelector('.booking-card');
-    if (!card) return;
-    card.classList.add('has-week-calendar');
-    const ui = document.createElement('section');
-    ui.className = 'sd-week-calendar sd-fixed-stays';
-    ui.innerHTML = `<h2>Kies je verblijf</h2><p class="sd-week-room">1 nacht · 2 volwassenen · Ontbijt inbegrepen</p><div class="sd-quick-stays"><div class="sd-quick-list" role="group" aria-label="Vaste verblijfsdatums">${fixedStayGroup.map(id => {
-      const offer = fixedStayOffers.find(d => Number(d.id) === id);
-      if (!offer) return '';
-      const current = offer.price_is_current === true && offer.booking_enabled === true;
-      return `<button type="button" class="sd-quick-option ${id===Number(deal.id)?'is-selected':''}" data-fixed-stay="${id}" aria-pressed="${id===Number(deal.id)}"><span><strong>${escapeHtml(formatDate(toDate(offer.travel_period_start)))} – ${escapeHtml(formatDate(toDate(offer.travel_period_end)))}</strong><small>1 nacht · 2 personen</small></span><span class="sd-quick-price"><strong>${escapeHtml(formatCurrency(positiveNumber(offer.deal_price,offer.price)))}</strong><small>${current?'Totaal voor het verblijf':'Nog niet bevestigd'}</small></span></button>`;
-    }).join('')}</div></div>`;
-    card.prepend(ui);
-    ui.querySelectorAll('[data-fixed-stay]').forEach(button => button.addEventListener('click', () => {
-      if (checkoutBusy || dealLoading) return;
-      const next = fixedStayOffers.find(d => Number(d.id) === Number(button.dataset.fixedStay));
-      if (!next) return;
-      fixedStaySelected = Number(next.id);
-      showFixedStay(next);
-      container.querySelector(`[data-fixed-stay="${fixedStaySelected}"]`)?.focus();
-    }));
   }
 
   function renderDeal(flexiblePolicy = null) {
@@ -626,7 +559,6 @@ function dealAmenityDetail(label, detail) {
   // Read-only date selection. An explicit server policy enables it per supplier deal.
   // This flow never calls checkout and cannot open production booking gates.
   function setFlexibleBusy(busy) {
-    if (fixedStayGroup) document.querySelectorAll('[data-fixed-stay]').forEach(b => { b.disabled = busy; });
     if(stayCapability?.mode!=='free-calendar')return;
     for(const id of ['sd-checkin','sd-checkout','sd-flex-price-check','sd-nights','sd-week-start']){const element=document.getElementById(id);if(element)element.disabled=busy;}
     document.querySelectorAll('.sd-week-calendar button').forEach(b=>{if(busy){b.dataset.wasDisabled=String(b.disabled);b.disabled=true;}else if(b.dataset.wasDisabled){b.disabled=b.dataset.wasDisabled==='true';delete b.dataset.wasDisabled;}});
@@ -1065,7 +997,6 @@ function checkoutDisplayedTerms(deal) {
   }
   function showError(title,message,retry=false){container.innerHTML=`<section class="detail-error"><span>!</span><h1>${escapeHtml(title)}</h1><p>${escapeHtml(message)}</p>${retry ? '<button id="retry-deal" class="button button-primary" type="button">Opnieuw controleren →</button>' : ''}<a class="button button-primary" href="${escapeAttribute(CONFIG.homePage)}#deals">Terug naar alle deals <span>→</span></a></section>`;if(retry)bindDealRetry();}
 })();
-
 
 
 
