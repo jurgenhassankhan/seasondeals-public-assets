@@ -393,7 +393,7 @@
     const fixedDates=deal.stay_policy?.enabled===true&&deal.stay_policy.mode==='fixed-options';
     const flexible = deal.source === "provider_sync" && deal.stay_policy?.enabled === true&&!fixedDates;
     const category = getCategory(deal);
-    const title = text(deal.title || deal.name, "SeasonDeals deal");
+    const title = text(category === "hotel" ? deal.hotel_name || deal.hotel?.name || deal.title || deal.name : deal.title || deal.name, "SeasonDeals deal");
     const image = getImage(deal);
     const price = getPositiveNumber(deal.deal_price, deal.price);
     const originalPrice = getNumber(deal.original_price);
@@ -421,13 +421,26 @@
       <div class="deal-card-body">
         <span class="deal-type">${escapeHtml(formatCategory(category))}${city ? ` · ${escapeHtml(city)}` : ""}</span>
         <h3>${escapeHtml(title)}</h3>
-        <div class="deal-partner">${escapeHtml(hotel)}</div>
+        ${title !== hotel ? `<div class="deal-partner">${escapeHtml(hotel)}</div>` : ""}
+        ${fixedDates ? `<p class="deal-partner">${escapeHtml(fixedCardSummary(deal))}</p>` : ""}
         ${rating > 0 ? `<div class="rating"><span>★</span> ${escapeHtml(formatDecimal(rating))}${reviews > 0 ? ` · ${escapeHtml(formatNumber(reviews))} beoordelingen` : ""}</div>` : ""}
-        ${fixedDates?'<p class="deal-partner">Keuze uit vaste verblijven</p>':deal.source === "provider_sync" && ([33,52].includes(Number(deal.id)) || flexible) ? '<p class="deal-partner">Kies zelf je aankomst- en vertrekdatum</p>' : ""}
+        ${!fixedDates && deal.source === "provider_sync" && ([33,52].includes(Number(deal.id)) || flexible) ? '<p class="deal-partner">Kies zelf je aankomst- en vertrekdatum</p>' : ""}
         <ul>${features.length ? features.map((feature) => `<li>✓ ${escapeHtml(feature)}</li>`).join("") : `<li>Bekijk de deal voor alle details</li>`}</ul>
         <div class="price-row"><span>${!checking && !flexible && originalPrice > price ? `<del>${escapeHtml(formatCurrency(originalPrice))}</del>` : ""}<strong>${fixedDates?(price?`Vanaf ${escapeHtml(formatCurrency(price))}`:"Bekijk prijzen"):flexible ? "Prijs ophalen…" : `Prijs ${escapeHtml(formatCurrency(price))}`}</strong><small>${fixedDates&&deal.display_stay?escapeHtml(new Intl.DateTimeFormat("nl-NL",{day:"numeric",month:"short",timeZone:"UTC"}).format(new Date(deal.display_stay.checkin))+" – "+new Intl.DateTimeFormat("nl-NL",{day:"numeric",month:"short",timeZone:"UTC"}).format(new Date(deal.display_stay.checkout))+" · 2 personen"):flexible ? "Controleer prijs en beschikbaarheid" : remaining === null ? "Bekijk de actuele beschikbaarheid" : `Actuele voorraad: ${formatNumber(remaining)}`}</small></span><div class="deal-card-cta">Bekijk deal →</div></div>
       </div>`;
     return card;
+  }
+
+  function fixedCardSummary(deal) {
+    const policy = deal.stay_policy, options = policy.options || [];
+    const nights = [...new Set(options.map(o => (Date.parse(o.checkout) - Date.parse(o.checkin)) / 86400000).filter(n => Number.isInteger(n) && n > 0))].sort((a, b) => a - b);
+    const guests = getNumber(policy.guests ?? deal.max_guests);
+    const parts = [];
+    if (nights.length) parts.push(nights.length === 1 ? `${nights[0]} ${nights[0] === 1 ? 'nacht' : 'nachten'}` : `${nights[0]}–${nights.at(-1)} nachten`);
+    if (guests > 0) parts.push(`${guests} ${guests === 1 ? 'persoon' : 'personen'}`);
+    if (options.length) parts.push(`${options.length === 4 ? 'Vier' : options.length} ${options.length === 1 ? 'weekend' : 'weekenden'} om uit te kiezen`);
+    if (deal.includes_breakfast) parts.push('Ontbijt inbegrepen');
+    return parts.join(' · ');
   }
 
   function cardStayCandidates(policy) {
@@ -505,14 +518,14 @@
       const nights = getNumber(deal.minimum_nights);
       const guests = getNumber(deal.max_guests);
       const stay = [];
-      if(deal.stay_policy?.mode==='fixed-options')stay.push(`${nights} ${nights===1?'overnachting':'overnachtingen'} · ${deal.stay_policy.options.length} datumopties`);
+      if(deal.stay_policy?.mode==='fixed-options') { /* Stay facts are shown directly below the hotel name. */ }
       else if (deal.source === "provider_sync" && deal.stay_policy?.enabled === true) stay.push(`${deal.stay_policy.min_nights}–${deal.stay_policy.max_nights} nachten naar keuze`);
       else if (Number.isInteger(nights) && nights > 0) stay.push(`${deal.source === "provider_sync" ? "" : "Vanaf "}${nights} ${nights === 1 ? "overnachting" : "overnachtingen"}`);
-      if (Number.isInteger(guests) && guests > 0) stay.push(`${deal.source === "provider_sync" ? "Voor" : "Tot"} ${guests} ${guests === 1 ? "persoon" : "personen"}`);
+      if (deal.stay_policy?.mode !== 'fixed-options' && Number.isInteger(guests) && guests > 0) stay.push(`${deal.source === "provider_sync" ? "Voor" : "Tot"} ${guests} ${guests === 1 ? "persoon" : "personen"}`);
       if (stay.length) features.push(stay.join(" · "));
       if (typeof deal.room_type === "string" && deal.room_type.trim()) features.push(deal.room_type.trim());
     }
-    if (deal.includes_breakfast) features.push("Ontbijt inbegrepen");
+    if (deal.includes_breakfast && deal.stay_policy?.mode !== 'fixed-options') features.push("Ontbijt inbegrepen");
     if (deal.includes_wifi) features.push("Wifi inbegrepen");
     if (deal.includes_parking) features.push("Parkeren inbegrepen");
     if (deal.includes_late_checkout) features.push("Late check-out");
