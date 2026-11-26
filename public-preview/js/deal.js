@@ -31,8 +31,8 @@ function dealAmenityDetail(label, detail) {
   const container = document.getElementById("deal-detail");
   const cmsDealId = container?.dataset.sdDealId;
   const dealId = cmsDealId || new URLSearchParams(window.location.search).get("id");
-  const mottoDecember = [36,41].includes(Number(dealId));
-  const delftDecember = Number(dealId) === 41;
+  let mottoDecember = [36,41].includes(Number(dealId));
+  let delftDecember = Number(dealId) === 41;
   const promoArrival = '2026-12-04', promoDeparture = '2026-12-05';
   let selectedOffer = null;
   function validMottoOffer(o) {
@@ -84,10 +84,10 @@ function dealAmenityDetail(label, detail) {
       // The capability endpoint independently checks approval and exact supplier identity.
       try {
         const capResponse=await fetch(CONFIG.dealsEndpoint.replace(/\/deals$/, '/supplier/production/stay-options'),{method:'POST',mode:'cors',credentials:'omit',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({deal_id:Number(dealId),stay:null}),signal:AbortSignal.timeout(15000)});
-        if(capResponse.ok){const p=await capResponse.json();stayCapability=p;if(validStayPolicy(p,Number(dealId))&&p.deal?.id===Number(dealId)&&p.deal.source==='provider_sync'&&(p.deal.booking_enabled===false||['free-calendar','fixed-options'].includes(p.mode)&&p.can_book===true)){pendingDeal={...(pendingDeal?.content_verified===true?pendingDeal:{}),...p.deal};if(checkoutBusy)return;deal=pendingDeal;gallery=getImages(pendingDeal);renderFlexibleDeal(p);bindDealEvents();await initStayChoice(p);return;}}
+        if(capResponse.ok){const p=await capResponse.json();stayCapability=p;if(p.mode==='fixed-options'){mottoDecember=false;delftDecember=false;}if(validStayPolicy(p,Number(dealId))&&p.deal?.id===Number(dealId)&&p.deal.source==='provider_sync'&&(p.deal.booking_enabled===false||['free-calendar','fixed-options'].includes(p.mode)&&p.can_book===true)){pendingDeal={...(pendingDeal?.content_verified===true?pendingDeal:{}),...p.deal};if(checkoutBusy)return;deal=pendingDeal;gallery=getImages(pendingDeal);renderFlexibleDeal(p);bindDealEvents();await initStayChoice(p);return;}}
       }catch{}
       }
-      if (Number(dealId) === 83) return showError('Verblijven tijdelijk niet beschikbaar', 'De weekendopties kunnen op dit moment niet worden bevestigd. Probeer het opnieuw.',true);
+      if (Number(dealId) === 83 || pendingDeal?.stay_policy?.mode==='fixed-options') return showError('Verblijven tijdelijk niet beschikbaar', 'De weekendopties kunnen op dit moment niet worden bevestigd. Probeer het opnieuw.',true);
       if (mottoDecember) return showError('Aanbod niet bevestigd', 'Het verblijf van 4 tot 5 december kan nu niet worden bevestigd. Controleer opnieuw of bekijk onze andere deals.',true);
       if (!response.ok) throw new Error(`De dealservice gaf status ${response.status}.`);
       if (!pendingDeal || !isPublicDeal(pendingDeal)) {
@@ -170,7 +170,7 @@ function dealAmenityDetail(label, detail) {
     // Preserve the server-generated SEO title on canonical CMS pages.
     if (!cmsDealId) document.title = `${title} · SeasonDeals`;
 
-    container.innerHTML = `<div class="detail-container${flexiblePolicy?.mode === 'fixed-options' && Number(deal.id) === 83 ? ' fixed-weekend-deal' : ''}">
+    container.innerHTML = `<div class="detail-container${flexiblePolicy?.mode === 'fixed-options' ? ' fixed-weekend-deal' : ''}">
       <nav class="detail-breadcrumbs" aria-label="Broodkruimel"><a href="${escapeAttribute(CONFIG.homePage)}">Home</a><span>›</span><a href="${escapeAttribute(CONFIG.homePage)}#deals">Deals</a><span>›</span><span>${escapeHtml(title)}</span></nav>
       ${renderGallery(title)}
       <header class="detail-heading"><div><span class="detail-kicker">${escapeHtml(formatCategory(getCategory(deal)))}${location ? ` · ${escapeHtml(location)}` : ""}</span><h1>${escapeHtml(title)}</h1><div class="detail-subline"><strong>${escapeHtml(hotel)}</strong>${rating > 0 ? `<span class="detail-rating">★ ${escapeHtml(formatDecimal(rating))}${reviews > 0 ? ` · ${escapeHtml(formatNumber(reviews))} beoordelingen` : ""}</span>` : ""}${deal.star_rating > 0 ? `<span>${"★".repeat(Math.min(5, Math.round(deal.star_rating)))} hotel</span>` : ""}${flexiblePolicy ? (mottoDecember ? '<span class="detail-stock">4–5 december</span>' : '<span class="detail-stock">Kies je datums</span>') : deal.source === "provider_sync" ? `<span class="detail-stock">${checking ? "Beschikbaarheid nog niet bevestigd" : "● Beschikbaar"}</span>` : remaining !== null ? `<span class="detail-stock${remaining <= 5 ? " is-low" : ""}">● ${remaining === 0 ? "Uitverkocht" : `Actuele voorraad: ${formatNumber(remaining)}`}</span>` : ""}</div></div><div class="detail-heading-actions"><button class="detail-icon-button" id="share-deal" type="button" aria-label="Deal delen">↗</button><button class="detail-icon-button" id="save-deal" type="button" aria-label="Deal opslaan">♡</button></div></header>
@@ -200,7 +200,7 @@ function dealAmenityDetail(label, detail) {
       long_description: `Verblijf bij ${text(deal.hotel_name,'het hotel')} in ${deal.room}. ${deal.board}. ${policy.mode==='fixed-options'?'Kies één van de aangeboden vaste verblijven.':'Kies zelf jouw aankomst en vertrek.'} De actuele totaalprijs en annuleringsvoorwaarden worden voor jouw datums gecontroleerd.`,
       price: null, deal_price: null, original_price: null,
       travel_period_start: policy.mode==='fixed-options'?policy.options[0].checkin:policy.start, travel_period_end: policy.mode==='fixed-options'?policy.options.at(-1).checkout:policy.end,
-      minimum_nights: policy.min_nights, max_guests: policy.guests,
+      minimum_nights: policy.mode==='fixed-options'?(Date.parse(policy.options[0].checkout)-Date.parse(policy.options[0].checkin))/86400000:policy.min_nights, max_guests: policy.guests,
       cancellation_policy: 'De annuleringsvoorwaarden en totaalprijs worden getoond voor jouw gekozen datums.',
       content_verified: true,
       included_items: [
@@ -644,7 +644,7 @@ function dealAmenityDetail(label, detail) {
       if (policy.mode === 'fixed-options') return policy.options.map(option => {
         const row = cache.get([option.checkin,option.checkout,policy.guests].join('|'));
         const observed = row?.price_checked_at || row?.checked_at;
-        const expires = Math.min(row?.calendar_expires_at ?? observed+600000, observed+21600000);
+        const expires = Date.parse(option.checkin+'T00:00:00Z')+86400000;
         return observed<=now && now<expires ? row : {...option,guests:policy.guests,options:[]};
       });
       return Array.from(cache.values()).filter(r=>[33,36,41,52,83].includes(Number(deal.id))&&r.status==='available'&&r.checkin>=policy.start&&r.checkout>r.checkin&&r.guests===policy.guests&&Number.isFinite(r.options?.[0]?.price)&&r.options[0].price>0&&Array.isArray(r.options[0].local_fees)&&Number.isFinite(r.price_checked_at||r.checked_at)&&(r.price_checked_at||r.checked_at)<=now&&now-(r.price_checked_at||r.checked_at)<600000)
@@ -655,7 +655,7 @@ function dealAmenityDetail(label, detail) {
       quick.hidden=!options.length;ui.querySelector('.sd-other-dates').hidden=fixedOptions||!options.length;
       const signature=JSON.stringify(options.map(r=>[r.checkin,r.checkout,r.status,r.options[0],selected===r.checkin&&departure.value===r.checkout,checkoutBusy]));
       if(signature!==quickSignature){quickSignature=signature;quickList.innerHTML=options.map(r=>{const o=r.options[0],count=Math.round((Date.parse(r.checkout)-Date.parse(r.checkin))/86400000),active=selected===r.checkin&&departure.value===r.checkout;
-        return `<button type="button" class="sd-quick-option ${active?'is-selected':''}" data-quick-arrival="${r.checkin}" data-quick-departure="${r.checkout}" aria-pressed="${active}" ${checkoutBusy?'disabled':''}><span><strong>${fixedOptions?periodLabel(r.checkin,r.checkout):dateLabel(r.checkin)+" – "+dateLabel(r.checkout)}</strong><small>${count} ${count===1?'nacht':'nachten'} · ${policy.guests} personen</small>${(o?.local_fees||[]).map(f=>`<small>${escapeHtml(f.description)}: ${escapeHtml(cash(f.amount))} ter plaatse</small>`).join('')}</span><span class="sd-quick-price"><strong>${o?escapeHtml(cash(o.price)):(r.status==='unavailable'?'Geen aanbod':'Prijs bekijken')}</strong><small>${o?'totaal':''}</small></span><span aria-hidden="true">${active?'✓':'→'}</span></button>`;
+        return `<button type="button" class="sd-quick-option ${active?'is-selected':''}" data-quick-arrival="${r.checkin}" data-quick-departure="${r.checkout}" aria-pressed="${active}" ${checkoutBusy||r.status==='unavailable'?'disabled':''}><span><strong>${fixedOptions?periodLabel(r.checkin,r.checkout):dateLabel(r.checkin)+" – "+dateLabel(r.checkout)}</strong><small>${count} ${count===1?'nacht':'nachten'} · ${policy.guests} personen</small>${(o?.local_fees||[]).map(f=>`<small>${escapeHtml(f.description)}: ${escapeHtml(cash(f.amount))} ter plaatse</small>`).join('')}</span><span class="sd-quick-price"><strong>${o?escapeHtml(cash(o.price)):(r.status==='unavailable'?'Uitverkocht':'Prijs bekijken')}</strong><small>${o?'totaal':''}</small></span><span aria-hidden="true">${active?'✓':'→'}</span></button>`;
       }).join('');}
       if(options.length&&!fixedOptions)quickTimer=setTimeout(()=>{if(ui.isConnected)renderQuickStays();},Math.max(100,Math.min(...options.map(r=>(r.price_checked_at||r.checked_at)+600000-Date.now()))+25));
     }
@@ -769,13 +769,13 @@ function dealAmenityDetail(label, detail) {
       stopRetry();pendingDays.clear();generation++;loading=false;clearTimeout(debounce);clearQuote();const id=quoteGeneration,d=selected;check.disabled=true;result.textContent='Prijs ophalen… Even geduld a.u.b.';
       try{const r=await request(d,false);if(id!==quoteGeneration||!ui.isConnected)return;
         if(r.status!=='available'){
-          if(fixedOptions){
+          if(fixedOptions&&r.status==='unavailable'){
             cache.set(key(d),r);
-            selection.querySelector('.sd-week-summary-total strong').textContent=r.status==='unavailable'?'Geen aanbod':'Prijs niet bevestigd';
+            selection.querySelector('.sd-week-summary-total strong').textContent='Uitverkocht';
             selection.querySelectorAll('p').forEach(p=>p.remove());
             renderQuickStays();
           }
-          result.textContent=r.status==='unavailable'?(mottoDecember?'Geen kamer beschikbaar voor 4–5 december.':'Geen passend aanbod voor deze datums. Kies een andere dag.'):r.retry_after?`Probeer de controle over ${r.retry_after} seconden opnieuw.`:'De controle is niet gelukt. Probeer opnieuw.';await showHotelAlternative(id);return;}
+          result.textContent=r.status==='unavailable'?(mottoDecember?'Geen kamer beschikbaar voor 4–5 december.':'Uitverkocht. Kies een ander verblijf.'):'Probeer het over een moment opnieuw.';await showHotelAlternative(id);return;}
         const o=mottoDecember ? r.options.find(validMottoOffer) : r.options[0];
         if (!o || ((mottoDecember || fixedOptions) && (r.can_book !== true || !validMottoOffer(o)))) {
           result.textContent='Er is geen bevestigd verblijf beschikbaar voor deze datums.'; await showHotelAlternative(id); return;
@@ -803,8 +803,8 @@ function dealAmenityDetail(label, detail) {
           if (id===quoteGeneration && r.valid_until>Date.now()) form.requestSubmit(book);
         }
         expiry=setTimeout(()=>{if(id===quoteGeneration&&!checkoutBusy){clearQuote();check.hidden=false;check.disabled=false;result.textContent='Controleer de prijs opnieuw om verder te gaan.';}},Math.max(0,r.valid_until-Date.now()));
-      }catch(e){if(id===quoteGeneration){result.textContent=e.message;await showHotelAlternative(id);}}
-      finally{if(id===quoteGeneration)check.disabled=false;}
+      }catch(e){if(id===quoteGeneration){result.textContent=fixedOptions?'Probeer het over een moment opnieuw.':e.message;await showHotelAlternative(id);}}
+      finally{if(id===quoteGeneration)check.disabled=fixedOptions&&entry(selected)?.status==='unavailable';}
     });
     form.addEventListener('submit',e=>{if(!chosen||chosen.checkin!==arrival.value||chosen.checkout!==departure.value||chosen.valid_until<=Date.now()){e.preventDefault();e.stopImmediatePropagation();clearQuote();check.hidden=false;result.textContent='Controleer eerst de actuele prijs voor je gekozen verblijf.';}},true);
     renderDays();
@@ -889,10 +889,10 @@ function dealAmenityDetail(label, detail) {
     });
   }
   function validStayDay(value) {return typeof value==='string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value+'T00:00:00Z')) && new Date(value+'T00:00:00Z').toISOString().slice(0,10)===value;}
-  function validStayPolicy(p,id) {if(p?.mode==='fixed-options')return p.deal_id===83&&Array.isArray(p.options)&&p.options.length>0&&p.options.length<=12&&p.options.every(o=>validStayDay(o.checkin)&&validStayDay(o.checkout)&&o.checkin>=p.start&&o.checkout>o.checkin)&&validStayPolicy({...p,mode:'free-calendar'},id);if(p?.mode==='free-calendar')return p.enabled===true&&p.deal_id===id&&[33,36,41,52,83].includes(id)&&p.can_book===true&&validStayDay(p.start)&&p.end===null&&p.min_nights===1&&p.max_nights===null&&Number.isInteger(p.guests)&&p.guests>=1&&p.guests<=6&&typeof p.expected_terms==='string';return !!p && p.enabled===true && p.deal_id===id && p.can_book===false && validStayDay(p.start) && validStayDay(p.end) && p.start<p.end && Number.isInteger(p.min_nights) && Number.isInteger(p.max_nights) && p.min_nights>=1 && p.max_nights>=p.min_nights && p.max_nights<=30 && Number.isInteger(p.guests) && p.guests>=1 && p.guests<=6;}
+  function validStayPolicy(p,id,fixed=false) {if(p?.mode==='fixed-options')return p.deal_id===id&&Array.isArray(p.options)&&p.options.length>0&&p.options.length<=12&&p.options.every(o=>validStayDay(o.checkin)&&validStayDay(o.checkout)&&o.checkin>=p.start&&o.checkout>o.checkin)&&validStayPolicy({...p,mode:'free-calendar'},id,true);if(p?.mode==='free-calendar')return p.enabled===true&&p.deal_id===id&&(fixed||[33,36,41,52].includes(id))&&p.can_book===true&&validStayDay(p.start)&&p.end===null&&p.min_nights===1&&p.max_nights===null&&Number.isInteger(p.guests)&&p.guests>=1&&p.guests<=6&&typeof p.expected_terms==='string';return !!p && p.enabled===true && p.deal_id===id && p.can_book===false && validStayDay(p.start) && validStayDay(p.end) && p.start<p.end && Number.isInteger(p.min_nights) && Number.isInteger(p.max_nights) && p.min_nights>=1 && p.max_nights>=p.min_nights && p.max_nights<=30 && Number.isInteger(p.guests) && p.guests>=1 && p.guests<=6;}
   function validStayDates(p,a,b) {const nights=(Date.parse(b)-Date.parse(a))/86400000;return validStayDay(a)&&validStayDay(b)&&a>=p.start&&b<=p.end&&nights>=p.min_nights&&nights<=p.max_nights;}
   function validStayResult(r,id,a,b,guests,now=Date.now()) {
-    return !!r && r.deal_id===id && r.checkin===a && r.checkout===b && r.guests===guests && r.nights===(Date.parse(b)-Date.parse(a))/86400000 && r.currency==='EUR' && (r.can_book===false||[33,36,41,52,83].includes(id)&&r.can_book===true) && Number.isFinite(r.checked_at) && Number.isFinite(r.valid_until) && r.checked_at<=now+5000 && r.valid_until>now && r.valid_until>r.checked_at && r.valid_until-r.checked_at<=60000 && Array.isArray(r.options) && r.options.length<=6 && ['available','unavailable','unknown','price_review_required'].includes(r.status) && (r.status==='available'?r.options.length>0:r.options.length===0) && r.options.every(o=>o && typeof o.room==='string' && typeof o.board==='string' && typeof o.cancellation==='string' && Number.isFinite(o.price)&&o.price>0);
+    return !!r && r.deal_id===id && r.checkin===a && r.checkout===b && r.guests===guests && r.nights===(Date.parse(b)-Date.parse(a))/86400000 && r.currency==='EUR' && (r.can_book===false||([33,36,41,52].includes(id)||stayCapability?.mode==='fixed-options'&&stayCapability.deal_id===id)&&r.can_book===true) && Number.isFinite(r.checked_at) && Number.isFinite(r.valid_until) && r.checked_at<=now+5000 && r.valid_until>now && r.valid_until>r.checked_at && r.valid_until-r.checked_at<=60000 && Array.isArray(r.options) && r.options.length<=6 && ['available','unavailable','unknown','price_review_required'].includes(r.status) && (r.status==='available'?r.options.length>0:r.options.length===0) && r.options.every(o=>o && typeof o.room==='string' && typeof o.board==='string' && typeof o.cancellation==='string' && Number.isFinite(o.price)&&o.price>0);
   }
 
   // BEGIN DISPLAYED CHECKOUT TERMS
