@@ -293,6 +293,11 @@ function dealAmenityDetail(label, detail) {
         const staleQuote = !mottoDecember && !['free-calendar','fixed-options'].includes(stayCapability?.mode) && response.status === 400 && ['Approved production quote required', 'No approved, margin-safe production offer is available'].includes(data?.message);
         const changed = response.ok && data?.status === 'offer_changed' && data.checkout_created === false;
         const notes = response.ok && data?.status === 'hotel_notes_review' && data.checkout_created === false;
+        if (changed && stayCapability?.mode === 'fixed-options') {
+          const error = checkoutCustomerError('Bekijk de actuele verblijven en kies opnieuw.', 'changed');
+          error.quoteUnconfirmed = true;
+          throw error;
+        }
         if (!notes && !changed && !staleQuote) break;
         if (reviews >= 4) {
           await reviewHotelNotes('Het aanbod blijft wijzigen. Sluit dit venster en controleer opnieuw.', null, null, true);
@@ -373,6 +378,9 @@ function dealAmenityDetail(label, detail) {
       window.location.href = checkoutUrl;
     } catch (error) {
       if (error.quoteUnconfirmed) { failureCode = "CHECKOUT_QUOTE_UNCONFIRMED"; failureStatus = 400; }
+      if (error.quoteUnconfirmed && stayCapability?.mode === 'fixed-options') {
+        await reviewHotelNotes('Dit aanbod kon niet worden bevestigd. Er is niets betaald. We controleren je gekozen verblijf opnieuw. Je kunt daarna ook een ander weekend kiezen.', null, null, true);
+      }
       recordBookingJourney(journey,error.bookingStage||(failureCode?'failed':'changed'),journeyRequest,failureCode,failureStatus);
       reportCheckoutError(failureCode, failureStatus);
       console.error("SeasonDeals checkout failed:", failureCode || "offer changed");
@@ -808,12 +816,20 @@ function dealAmenityDetail(label, detail) {
     });
     form.addEventListener('submit',e=>{if(!chosen||chosen.checkin!==arrival.value||chosen.checkout!==departure.value||chosen.valid_until<=Date.now()){e.preventDefault();e.stopImmediatePropagation();clearQuote();check.hidden=false;result.textContent='Controleer eerst de actuele prijs voor je gekozen verblijf.';}},true);
     renderDays();
-    if (mottoDecember) {
+    if (mottoDecember || fixedOptions) {
       form.addEventListener('sd-quote-unconfirmed', () => {
         clearQuote();
         check.hidden=false; check.disabled=false;
+        check.textContent='Controleer prijs en beschikbaarheid';
         result.textContent='Controleer de kamer en de prijs opnieuw.';
+        if (fixedOptions) {
+          renderQuickStays();
+          // Recheck only; never submit checkout or accept changed terms automatically.
+          check.click();
+        }
       });
+    }
+    if (mottoDecember) {
       for (const node of ui.children) {
         if (![selection,check,result].includes(node)) node.style.display='none';
       }
@@ -929,7 +945,7 @@ function checkoutDisplayedTerms(deal) {
         throw checkoutCustomerError('De controle van je betaalpoging duurt langer. Klik opnieuw op boeken om dezelfde poging veilig te hervatten.');
       }
       // Both quote rejections precede order admission and Stripe session creation.
-      const quoteRejected = mottoDecember && response.status === 400 &&
+      const quoteRejected = (mottoDecember || stayCapability?.mode === 'fixed-options') && response.status === 400 &&
         ['Approved production quote required', 'No approved, margin-safe production offer is available'].includes(data?.message);
       if (quoteRejected) {
         if (quoteRetries < 2) {
@@ -938,7 +954,7 @@ function checkoutDisplayedTerms(deal) {
           await new Promise(resolve => setTimeout(resolve, 1500 * quoteRetries));
           continue;
         }
-        const error = checkoutCustomerError('Het hotel heeft de kamer voor 4–5 december nog niet bevestigd. Controleer de beschikbaarheid opnieuw.', 'changed');
+        const error = checkoutCustomerError('Het hotel heeft dit verblijf nog niet bevestigd. Controleer de beschikbaarheid opnieuw of kies een ander weekend.', 'changed');
         error.quoteUnconfirmed = true;
         throw error;
       }
