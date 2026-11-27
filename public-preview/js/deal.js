@@ -562,7 +562,8 @@ function dealAmenityDetail(label, detail) {
       if(key&&funnelSent.has(key))return;
       if(key)funnelSent.add(key);
       // No dates, identifiers, guest details, request keys or checkout URLs leave here.
-      window.dataLayer.push(['event',names[stage],{send_to:'G-MZM1ZDERTF',page_location:location.origin+location.pathname,page_referrer:'',deal_id:Number(deal.id),item_id:'deal-'+Number(deal.id)}]);
+      // gtag commands require an Arguments object; arrays are interpreted as data-layer method calls.
+      (function tag(){window.dataLayer.push(arguments);})('event',names[stage],{send_to:'G-MZM1ZDERTF',page_location:location.origin+location.pathname,page_referrer:'',deal_id:Number(deal.id),item_id:'deal-'+Number(deal.id)});
     } catch (_) { /* Diagnostics must never interrupt a booking. */ }
   }
   function createBookingJourney() {
