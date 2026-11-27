@@ -5,7 +5,7 @@
   if(!Number.isFinite(p.checked_at)||!Number.isFinite(p.valid_until)||p.checked_at>now+5000||p.valid_until<=now||p.valid_until<=p.checked_at||p.valid_until-p.checked_at>60000)return false;
   if(!['available','unavailable','unknown','price_review_required'].includes(p.status)||!Array.isArray(p.options)||p.options.length>6)return false;
   if(p.status!=='available')return p.options.length===0;
-  return p.options.length>0&&Number.isFinite(p.current_price)&&p.current_price>0&&p.options.every(o=>o&&['room','board','cancellation'].every(k=>typeof o[k]==='string')&&['price','base','break_even'].every(k=>Number.isFinite(o[k])&&o[k]>0)&&['nuitee_cost','stripe_cost','estimated_margin'].every(k=>Number.isFinite(o[k])&&o[k]>=0)&&Math.abs(o.price-o.base-o.nuitee_cost-o.stripe_cost-o.estimated_margin)<0.011);
+  return p.options.length>0&&Number.isFinite(p.current_price)&&p.current_price>0&&p.options.every(o=>o&&['room','board','cancellation'].every(k=>typeof o[k]==='string')&&['price','base','break_even'].every(k=>Number.isFinite(o[k])&&o[k]>0)&&['nuitee_cost','stripe_cost','estimated_margin'].every(k=>Number.isFinite(o[k])&&o[k]>=0)&&Math.abs(o.price-o.base-o.nuitee_cost-o.stripe_cost-o.estimated_margin)<0.011&&Array.isArray(o.local_fees)&&Number.isFinite(o.local_fees_total)&&o.local_fees_total>=0&&Number.isFinite(o.total_price)&&Math.abs(o.total_price-o.price-o.local_fees_total)<0.011&&o.local_fees.every(f=>f&&typeof f.description==='string'&&f.description.trim()&&f.currency==='EUR'&&f.pay_at_property===true&&Number.isFinite(f.amount)&&f.amount>=0)&&Math.abs(o.local_fees.reduce((n,f)=>n+Math.round(f.amount*100),0)/100-o.local_fees_total)<0.011);
  }
  function mount(deal,supplier){
   if(supplier?.provider!=='nuitee'||supplier.environment!=='production')return;
@@ -25,7 +25,7 @@
     if(id!==serial)return;
     if(!validPreview(p,Number(deal.id),checkin,checkout,dates?.occupancies?.[0]?.adults))throw Error('Voorstel niet bevestigd of verlopen. Controleer opnieuw.');
     if(p.status!=='available'||!p.options?.length){out.textContent=p.message||'Geen bevestigd aanbod voor deze datums.';return;}
-    out.innerHTML=`<p><strong>${nights} nachten · ${p.guests} personen</strong></p><p>Huidige vaste dealprijs: ${money(p.current_price)}. ${p.proposed_pricing?.calculation_basis==='base_markup_v1'?'Nieuwe prijs volgt de goedgekeurde standaard: het hoogste van €20 of 10% op inkoop, plus Nuitée- en Stripekosten.':'Dit voorstel gebruikt nog de bestaande prijsregel; de nieuwe standaard is nog niet aangesloten.'} Er is nog niets overgenomen.</p>`+p.options.map(o=>`<div class="panel"><p><strong>${esc(o.room)} · ${esc(o.board)}</strong></p><p>Voorstel: <strong>${money(o.price)}</strong><br>Inkoop: ${money(o.base)}<br>Nuitée: ${money(o.nuitee_cost)}<br>Stripe: ${money(o.stripe_cost)}<br>Verwachte marge: ${money(o.estimated_margin)}<br>Geschatte kostendekkende prijs: ${money(o.break_even)}</p><p>${esc(o.cancellation)}</p></div>`).join('')+'<p>Kosten zijn ramingen. Dit onderzoek verandert geen prijzen, periode of publicatiestatus.</p>';
+    out.innerHTML=`<p><strong>${nights} nachten · ${p.guests} personen</strong></p><p>Huidige vaste dealprijs: ${money(p.current_price)}. ${'Dit voorstel gebruikt de opgeslagen prijsregel van deze deal.'} Er is nog niets overgenomen.</p>`+p.options.map(o=>`<div class="panel"><p><strong>${esc(o.room)} · ${esc(o.board)}</strong></p><p>Voorstel: <strong>${money(o.price)}</strong><br>Ter plaatse: ${money(o.local_fees_total)}<br>Totaal inclusief lokale kosten: ${money(o.total_price)}<br>Inkoop: ${money(o.base)}<br>Nuitée: ${money(o.nuitee_cost)}<br>Stripe: ${money(o.stripe_cost)}<br>Verwachte marge: ${money(o.estimated_margin)}<br>Geschatte kostendekkende prijs: ${money(o.break_even)}</p>${o.local_fees.map(f=>`<p>${esc(f.description)}: ${money(f.amount)} · te betalen bij het hotel</p>`).join('')}<p>${esc(o.cancellation)}</p></div>`).join('')+'<p>Kosten zijn ramingen. Dit onderzoek verandert geen prijzen, periode of publicatiestatus.</p>';
     timer=setTimeout(()=>{if(id===serial)out.textContent='Voorstel verlopen. Haal opnieuw een actuele prijs op.';},Math.max(0,p.valid_until-Date.now()));
    } catch(e){if(id===serial)out.textContent=e.message||'Prijscontrole mislukt.';}
    finally{if(id===serial)button.disabled=false;}
@@ -33,3 +33,4 @@
  }
  window.SeasonDealsStayPreview={mount,validPreview};
 })();
+
