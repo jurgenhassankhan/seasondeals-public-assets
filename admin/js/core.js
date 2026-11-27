@@ -64,6 +64,7 @@
       ["dashboard", "index.html", "Dashboard", dashboardIcon()],
       ["hotels", "hotels.html", "Partners", hotelsIcon()],
       ["suppliers", "suppliers.html", "Leveranciers", integrationsIcon()],
+      ["weekend-alert", "weekend-alert.html", "Weekendalert", ordersIcon()],
       ["booking-insights", "booking-insights.html", "Boekingsinzichten", ordersIcon()],
       ["incidents", "checkout-incidents.html", "Foutmeldingen", integrationsIcon()],
       ["orders", "orders.html", "Omzet & orders", ordersIcon()],
@@ -159,3 +160,4 @@
 
   window.AdminCore = { config, request, requireAuth, mountShell, clearSession, redirectToLogin, redirectToDashboard, escapeHtml, label, money, date, statusLabel, statusBadge, imageUrl, toast, pick, canReview };
 })();
+
