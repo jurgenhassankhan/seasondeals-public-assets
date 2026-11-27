@@ -544,15 +544,37 @@ function dealAmenityDetail(label, detail) {
 
     // Best-effort technical telemetry only: no guest details, URLs, tokens or raw errors.
   // Passive diagnostics only: a failure here must never interrupt booking.
+  function internalJourney() {
+    try {
+      const value=new URLSearchParams(location.search).get('sd_test');
+      if(value==='1')sessionStorage.setItem('sd_internal_test','1');
+      if(value==='0')sessionStorage.removeItem('sd_internal_test');
+      return value==='1'||sessionStorage.getItem('sd_internal_test')==='1';
+    } catch (_) {return new URLSearchParams(location.search).get('sd_test')==='1';}
+  }
+  const funnelSent=new Set();
+  function trackFunnel(stage,attempt) {
+    try {
+      const names={selected:'stay_selected',checking:'availability_check',available:'availability_available',unavailable:'availability_unavailable',unknown:'availability_unknown',started:'checkout_requested',redirect:'checkout_ready',cancelled:'checkout_review_cancelled',changed:'checkout_offer_changed',failed:'checkout_failed',pending:'checkout_pending'};
+      const consent=JSON.parse(localStorage.getItem('sd_cookie_consent_v1')||'null');
+      if(!names[stage]||internalJourney()||consent?.version!==1||consent.analytics!==true||!Array.isArray(window.dataLayer))return;
+      const key=attempt?attempt+'|'+stage:null;
+      if(key&&funnelSent.has(key))return;
+      if(key)funnelSent.add(key);
+      // No dates, identifiers, guest details, request keys or checkout URLs leave here.
+      window.dataLayer.push(['event',names[stage],{send_to:'G-MZM1ZDERTF',page_location:location.origin+location.pathname,page_referrer:'',deal_id:Number(deal.id),item_id:'deal-'+Number(deal.id)}]);
+    } catch (_) { /* Diagnostics must never interrupt a booking. */ }
+  }
   function createBookingJourney() {
     try {
       const bytes=new Uint8Array(16);window.crypto.getRandomValues(bytes);
       const q=new URLSearchParams(location.search);
-      return {attempt_id:Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join(''),deal_id:Number(deal.id),is_test:q.get('sd_test')==='1',source:q.get('utm_source')||'',medium:q.get('utm_medium')||'',campaign:q.get('utm_campaign')||''};
+      return {attempt_id:Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join(''),deal_id:Number(deal.id),is_test:internalJourney(),source:q.get('utm_source')||'',medium:q.get('utm_medium')||'',campaign:q.get('utm_campaign')||''};
     } catch (_) {return null;}
   }
   function recordBookingJourney(journey,stage,request,code,http_status) {
     if(!journey)return;
+    trackFunnel(stage,journey.attempt_id);
     try {
       fetch(new URL('booking-event',CONFIG.checkoutEndpoint).href,{method:'POST',mode:'cors',credentials:'omit',keepalive:true,headers:{'Content-Type':'application/json'},body:JSON.stringify({...journey,stage,request_key:request?.request_key||'',code:code||'',http_status:http_status||0})}).catch(()=>{});
     } catch (_) {}
@@ -748,6 +770,7 @@ function dealAmenityDetail(label, detail) {
     ui.querySelectorAll('[data-week]').forEach(b=>b.addEventListener('click',()=>{if(checkoutBusy)return;const d=dateAdd(start,7*Number(b.dataset.week));startInput.value=d<policy.start?policy.start:d;changeWeek();}));
     retry.addEventListener('click',()=>{if(checkoutBusy||loading)return;retries=0;failures.clear();if(Date.now()<retryAt){status.textContent=`Probeer opnieuw over ${Math.ceil((retryAt-Date.now())/1000)} seconden. Je kunt wel een dag kiezen.`;return;}for(const [k,r] of cache){if(r.valid_until<=Date.now())cache.delete(k);}loadWeek();});
     function selectDay(day){stopRetry();pendingDays.clear();generation++;loading=false;clearTimeout(debounce);clearQuote();selected=day;arrival.value=selected;departure.min=dateAdd(selected,1);departure.value=dateAdd(selected,nights);const r=entry(selected),o=r?.status==='available'?r.options[0]:null;
+      trackFunnel('selected');
       selection.hidden=false;selection.innerHTML=`<h3>Jouw verblijf</h3><div class="sd-week-summary-dates"><span>Inchecken<strong>${dateLabel(selected)}</strong></span><span>Uitchecken<strong>${dateLabel(departure.value)}</strong></span></div><div class="sd-week-summary-total"><span>${nights} ${nights===1?'nacht':'nachten'} · ${policy.guests} personen</span><strong>${o?escapeHtml(cash(o.price)):'Prijs controleren'}</strong></div>`+(o?.local_fees||[]).map(f=>`<p>${escapeHtml(f.description)}: ${escapeHtml(cash(f.amount))} ter plaatse</p>`).join('');
       check.hidden=false;check.disabled=false;check.textContent='Controleer prijs en beschikbaarheid';status.textContent='Controleer je keuze voor de actuele prijs en voorwaarden.';renderDays();
     }
@@ -772,10 +795,12 @@ function dealAmenityDetail(label, detail) {
     for(const event of ['input','change']){arrival.addEventListener(event,changeArrival);departure.addEventListener(event,changeDeparture);}
     check.addEventListener('click',async()=>{
       if(checkoutBusy||!selected)return;
+      trackFunnel('checking');
       const displayedOption = fixedOptions ? entry(selected)?.options?.[0] : null;
       const continueToPayment = fixedOptions && validMottoOffer(displayedOption) && check.textContent === 'Verder naar betalen →';
       stopRetry();pendingDays.clear();generation++;loading=false;clearTimeout(debounce);clearQuote();const id=quoteGeneration,d=selected;check.disabled=true;result.textContent='Prijs ophalen… Even geduld a.u.b.';
       try{const r=await request(d,false);if(id!==quoteGeneration||!ui.isConnected)return;
+        trackFunnel(['available','unavailable'].includes(r.status)?r.status:'unknown');
         if(r.status!=='available'){
           if(fixedOptions&&r.status==='unavailable'){
             cache.set(key(d),r);
