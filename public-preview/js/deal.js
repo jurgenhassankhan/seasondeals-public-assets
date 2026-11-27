@@ -693,6 +693,7 @@ function dealAmenityDetail(label, detail) {
       const button=e.target.closest('[data-quick-arrival]');if(!button||button.disabled||checkoutBusy)return;
       const r=quickOptions().find(r=>r.checkin===button.dataset.quickArrival&&r.checkout===button.dataset.quickDeparture);
       if(!r){renderQuickStays();return;}
+      trackFunnel('selected');
       nights=Math.round((Date.parse(r.checkout)-Date.parse(r.checkin))/86400000);nightsInput.value=String(nights);start=r.checkin;startInput.value=start;
       selectDay(r.checkin);
       if (!fixedOptions) { check.click(); return; }
@@ -770,11 +771,10 @@ function dealAmenityDetail(label, detail) {
     ui.querySelectorAll('[data-week]').forEach(b=>b.addEventListener('click',()=>{if(checkoutBusy)return;const d=dateAdd(start,7*Number(b.dataset.week));startInput.value=d<policy.start?policy.start:d;changeWeek();}));
     retry.addEventListener('click',()=>{if(checkoutBusy||loading)return;retries=0;failures.clear();if(Date.now()<retryAt){status.textContent=`Probeer opnieuw over ${Math.ceil((retryAt-Date.now())/1000)} seconden. Je kunt wel een dag kiezen.`;return;}for(const [k,r] of cache){if(r.valid_until<=Date.now())cache.delete(k);}loadWeek();});
     function selectDay(day){stopRetry();pendingDays.clear();generation++;loading=false;clearTimeout(debounce);clearQuote();selected=day;arrival.value=selected;departure.min=dateAdd(selected,1);departure.value=dateAdd(selected,nights);const r=entry(selected),o=r?.status==='available'?r.options[0]:null;
-      trackFunnel('selected');
       selection.hidden=false;selection.innerHTML=`<h3>Jouw verblijf</h3><div class="sd-week-summary-dates"><span>Inchecken<strong>${dateLabel(selected)}</strong></span><span>Uitchecken<strong>${dateLabel(departure.value)}</strong></span></div><div class="sd-week-summary-total"><span>${nights} ${nights===1?'nacht':'nachten'} · ${policy.guests} personen</span><strong>${o?escapeHtml(cash(o.price)):'Prijs controleren'}</strong></div>`+(o?.local_fees||[]).map(f=>`<p>${escapeHtml(f.description)}: ${escapeHtml(cash(f.amount))} ter plaatse</p>`).join('');
       check.hidden=false;check.disabled=false;check.textContent='Controleer prijs en beschikbaarheid';status.textContent='Controleer je keuze voor de actuele prijs en voorwaarden.';renderDays();
     }
-    days.addEventListener('click',e=>{const b=e.target.closest('[data-day]');if(!b||b.disabled||checkoutBusy)return;selectDay(b.dataset.day);});
+    days.addEventListener('click',e=>{const b=e.target.closest('[data-day]');if(!b||b.disabled||checkoutBusy)return;trackFunnel('selected');selectDay(b.dataset.day);});
     function changeDates(){
       if(checkoutBusy)return;stopRetry();retries=0;pendingDays.clear();generation++;loading=false;clearTimeout(debounce);clearQuote();selected='';selection.hidden=true;check.hidden=true;check.disabled=false;
       const a=arrival.value,b=departure.value;departure.min=validStayDay(a)?dateAdd(a,1):policy.start;
